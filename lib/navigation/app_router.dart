@@ -236,11 +236,15 @@ class AppRouter {
       // ============ PARTAGÉ ============
       GoRoute(
         path: '/chat/:userId',
-        name: 'chat',
-        pageBuilder: (context, state) => MaterialPage(
-          key: state.pageKey,
-          child: ChatScreen(userId: state.pathParameters['userId']!),
-        ),
+        pageBuilder: (context, state) {
+          final userId = state.pathParameters['userId']!;
+          final returnRoute = state.uri.queryParameters['returnTo'];
+
+          return MaterialPage(
+            key: state.pageKey,
+            child: ChatScreen(userId: userId, returnRoute: returnRoute),
+          );
+        },
       ),
       GoRoute(
         path: '/payment',

@@ -11,7 +11,7 @@ class EarningsScreen extends StatelessWidget {
         title: const Text('Mes revenus'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/artisan/home'),
         ),
       ),
       body: const Center(child: Text('Statistiques et revenus')),

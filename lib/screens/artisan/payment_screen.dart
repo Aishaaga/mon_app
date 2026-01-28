@@ -11,7 +11,7 @@ class ArtisanPaymentScreen extends StatelessWidget {
         title: const Text('Paiement'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/artisan/job/999'),
         ),
       ),
       body: Center(

@@ -11,7 +11,7 @@ class ArtisanProfileScreen extends StatelessWidget {
         title: const Text('Profil professionnel'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/artisan/home'),
         ),
       ),
       body: Center(

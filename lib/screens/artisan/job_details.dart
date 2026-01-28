@@ -13,7 +13,7 @@ class JobDetailsScreen extends StatelessWidget {
         title: Text('Intervention $jobId'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/artisan/my-jobs'),
         ),
       ),
       body: Center(

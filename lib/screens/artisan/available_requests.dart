@@ -11,7 +11,7 @@ class AvailableRequestsScreen extends StatelessWidget {
         title: const Text('Demandes disponibles'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/artisan/home'),
         ),
       ),
       body: Center(

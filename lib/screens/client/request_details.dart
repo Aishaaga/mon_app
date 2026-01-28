@@ -13,7 +13,9 @@ class ClientRequestDetailsScreen extends StatelessWidget {
         title: Text('Détail demande $requestId'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/client/my-requests'),
+          onPressed: () => context.go(
+            '/chat/artisan123?returnTo=/client/request/$requestId',
+          ),
         ),
       ),
       body: Center(

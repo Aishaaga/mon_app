@@ -13,7 +13,7 @@ class SendQuoteScreen extends StatelessWidget {
         title: Text('Devis demande $requestId'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/artisan/request/456'),
         ),
       ),
       body: Center(
