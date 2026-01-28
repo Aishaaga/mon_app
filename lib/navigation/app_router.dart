@@ -130,7 +130,7 @@ class AppRouter {
       ),
       GoRoute(
         path: '/client/artisan/:id',
-        name: 'artisan_profile',
+        name: 'client_artisan_profile',
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
           child: ClientArtisanProfileScreen(
@@ -212,7 +212,7 @@ class AppRouter {
       ),
       GoRoute(
         path: '/artisan/profile',
-        name: 'artisan_profile',
+        name: 'artisan_own_profile',
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
           child: const ArtisanProfileScreen(),
