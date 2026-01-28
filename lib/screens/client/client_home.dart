@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ClientHome extends StatelessWidget {
   const ClientHome({super.key});
@@ -29,7 +30,15 @@ class ClientHome extends StatelessWidget {
               child: const Text('Mon profil'),
             ),
             ElevatedButton(
-              onPressed: () => context.go('/login'),
+              onPressed: () async {
+                // 1. Déconnecter
+                await FirebaseAuth.instance.signOut();
+
+                // 2. Forcer la navigation vers login
+                if (context.mounted) {
+                  context.go('/login');
+                }
+              },
               child: const Text('Déconnexion'),
             ),
           ],

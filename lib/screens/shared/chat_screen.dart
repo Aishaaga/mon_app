@@ -13,7 +13,7 @@ class ChatScreen extends StatelessWidget {
         title: Text('Chat avec $userId'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/client/request/123'),
         ),
       ),
       body: Center(
@@ -22,7 +22,7 @@ class ChatScreen extends StatelessWidget {
           children: [
             Text('Interface de chat avec $userId'),
             ElevatedButton(
-              onPressed: () => context.pop(),
+              onPressed: () => context.go('/client/request/123'),
               child: const Text('Fermer'),
             ),
           ],

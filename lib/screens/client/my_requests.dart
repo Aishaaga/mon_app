@@ -11,7 +11,7 @@ class MyRequestsScreen extends StatelessWidget {
         title: const Text('Mes demandes'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/client/home'),
         ),
       ),
       body: Center(

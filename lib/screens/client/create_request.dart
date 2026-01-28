@@ -11,7 +11,7 @@ class CreateRequestScreen extends StatelessWidget {
         title: const Text('Nouvelle demande'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/client/home'),
         ),
       ),
       body: const Center(child: Text('Écran de création de demande')),

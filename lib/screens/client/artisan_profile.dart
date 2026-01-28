@@ -13,7 +13,7 @@ class ClientArtisanProfileScreen extends StatelessWidget {
         title: Text('Profil artisan $artisanId'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/client/search-artisans'),
         ),
       ),
       body: Center(

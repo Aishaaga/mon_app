@@ -13,7 +13,7 @@ class ClientRequestDetailsScreen extends StatelessWidget {
         title: Text('Détail demande $requestId'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/client/my-requests'),
         ),
       ),
       body: Center(

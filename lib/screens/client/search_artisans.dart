@@ -11,7 +11,7 @@ class SearchArtisansScreen extends StatelessWidget {
         title: const Text('Recherche artisans'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/client/home'),
         ),
       ),
       body: Center(
