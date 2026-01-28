@@ -1,98 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../services/auth_service.dart'; // Import du service
+import 'package:go_router/go_router.dart';
 
-import '../auth/login_screen.dart';
-
-class ArtisanHome extends StatefulWidget {
+class ArtisanHome extends StatelessWidget {
   const ArtisanHome({super.key});
-
-  @override
-  State<ArtisanHome> createState() => _ArtisanHome();
-}
-
-class _ArtisanHome extends State<ArtisanHome> {
-  // Contrôleurs pour les champs de formulaire
-  final AuthService _authService = AuthService();
-  final nomController = TextEditingController();
-  final prenomController = TextEditingController();
-  final ageController = TextEditingController();
-
-  // Référence à la collection Firestore
-  final CollectionReference personnes = FirebaseFirestore.instance.collection(
-    'personnes',
-  );
-
-  // ID du document en cours d'édition (null = création, non null = modification)
-  String? editingId;
-
-  Future<void> _signOut() async {
-    // Méthode 1 : Utiliser la méthode qui retourne un booléen
-    final success = await _authService.signOutAndNavigate(context);
-
-    if (success && mounted) {
-      // Navigation explicite dans le widget
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
-    } else if (!success) {
-      // Afficher un message d'erreur
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Échec de la déconnexion')),
-        );
-      }
-    }
-  }
-
-  // Méthode alternative plus simple
-  Future<void> _signOutSimple() async {
-    try {
-      // Déconnexion de Firebase
-      await FirebaseAuth.instance.signOut();
-
-      // Navigation vers l'écran de login
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    nomController.dispose();
-    prenomController.dispose();
-    ageController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              _signOut();
-            },
-          ),
-        ],
+      appBar: AppBar(title: const Text('Tableau de bord Artisan')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () => context.go('/artisan/available-requests'),
+              child: const Text('Demandes disponibles'),
+            ),
+            ElevatedButton(
+              onPressed: () => context.go('/artisan/my-jobs'),
+              child: const Text('Mes interventions'),
+            ),
+            ElevatedButton(
+              onPressed: () => context.go('/artisan/profile'),
+              child: const Text('Mon profil'),
+            ),
+            ElevatedButton(
+              onPressed: () => context.go('/artisan/earnings'),
+              child: const Text('Mes revenus'),
+            ),
+            ElevatedButton(
+              onPressed: () => context.go('/login'),
+              child: const Text('Déconnexion'),
+            ),
+          ],
+        ),
       ),
-      body: const Center(child: Text('Page ArtisanHome - À compléter')),
     );
   }
 }
