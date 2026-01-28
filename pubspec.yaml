@@ -41,6 +41,9 @@ dev_dependencies:
   firebase_core: ^2.30.0
   firebase_auth: ^4.16.3
   cloud_firestore: ^4.17.0
+  firebase_storage: ^11.3.6
+  provider: ^6.1.1
+  image_picker: ^1.0.4
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
