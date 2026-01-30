@@ -111,8 +111,12 @@ class RequestProvider with ChangeNotifier {
       if (index != -1) {
         final currentRequest = _requests[index];
         _requests[index] = currentRequest.copyWith(
-          ...data,
-          'updatedAt': Timestamp.now(),
+        status: data['status'] ?? currentRequest.status,
+        category: data['category'] ?? currentRequest.category,
+        description: data['description'] ?? currentRequest.description,
+        estimatedBudget: data['estimatedBudget'] ?? currentRequest.estimatedBudget,
+        address: data['address'] ?? currentRequest.address,   
+        updatedAt: Timestamp.now(),
         );
       }
 

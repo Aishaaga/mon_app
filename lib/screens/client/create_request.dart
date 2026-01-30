@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../providers/request_provider.dart';
 import '../../providers/auth_provider.dart';
+import 'package:go_router/go_router.dart';
 
 class CreateRequestScreen extends StatefulWidget {
   const CreateRequestScreen({super.key});
@@ -313,7 +314,7 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
 
               // 5. Budget estimé
               const Text(
-                'Budget estimé (€)',
+                'Budget estimé (DH)',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -323,7 +324,7 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: '0.00',
-                  prefixText: '€ ',
+                  prefixText: 'DH ',
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
