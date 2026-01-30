@@ -31,10 +31,38 @@ class AuthProvider with ChangeNotifier {
       final doc = await _firestore.collection('users').doc(userId).get();
       if (doc.exists) {
         _userData = doc.data();
+      } else {
+        // Create default user data if document doesn't exist
+        final user = _auth.currentUser;
+        _userData = {
+          'fullName': user?.displayName ?? 'Utilisateur',
+          'email': user?.email ?? '',
+          'phone': '',
+          'address': '',
+          'userType': 'client',
+          'profileImageUrl': null,
+          'createdAt': Timestamp.now(),
+        };
+        // Optionally create the document in Firestore
+        await _firestore.collection('users').doc(userId).set(_userData!);
       }
       notifyListeners();
     } catch (e) {
       print('Erreur chargement données utilisateur: $e');
+      // Set default data on error to prevent null issues
+      final user = _auth.currentUser;
+      if (user != null) {
+        _userData = {
+          'fullName': user.displayName ?? 'Utilisateur',
+          'email': user.email ?? '',
+          'phone': '',
+          'address': '',
+          'userType': 'client',
+          'profileImageUrl': null,
+          'createdAt': Timestamp.now(),
+        };
+      }
+      notifyListeners();
     }
   }
 
