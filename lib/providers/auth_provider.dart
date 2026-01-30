@@ -10,7 +10,7 @@ class AuthProvider with ChangeNotifier {
   Map<String, dynamic>? _userData;
   bool _isLoading = false;
 
-  User? get user => _user;
+  User? get currentUser => _user;
   Map<String, dynamic>? get userData => _userData;
   bool get isLoading => _isLoading;
 
