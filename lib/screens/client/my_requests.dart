@@ -71,9 +71,9 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
             );
           }
 
-          final clientRequests = requestProvider.clientRequests;
+          final requests = requestProvider.requests;
 
-          if (clientRequests.isEmpty) {
+          if (requests.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -107,9 +107,9 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
             onRefresh: () => requestProvider.loadRequests(),
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: clientRequests.length,
+              itemCount: requests.length,
               itemBuilder: (context, index) {
-                final request = clientRequests[index];
+                final request = requests[index];
                 return RequestCard(request: request);
               },
             ),
@@ -225,7 +225,7 @@ class RequestCard extends StatelessWidget {
                 Icon(Icons.euro, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
-                  'Budget: ${request.estimatedBudget.toStringAsFixed(2)}€',
+                  'Budget: ${request.estimatedBudget.toStringAsFixed(2)}DH',
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
               ],

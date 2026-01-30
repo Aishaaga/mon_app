@@ -112,7 +112,7 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
       final requestId = await requestProvider.createRequest(
         category: _selectedCategory,
         description: _descriptionController.text.trim(),
-        photos: _photos, // Pour l'instant, on stocke les chemins locaux
+        photos: _photos,
         preferredDate: Timestamp.fromDate(_selectedDate!),
         estimatedBudget: double.tryParse(_budgetController.text) ?? 0.0,
         address: _addressController.text.trim(),
@@ -128,7 +128,12 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
           context.go('/client/my-requests');
         }
       } else {
-        throw Exception('Échec de la création de la demande');
+        final error = requestProvider.error;
+        if (error != null) {
+          throw Exception('Erreur du provider: $error');
+        } else {
+          throw Exception('Échec de la création de la demande - requestId null');
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

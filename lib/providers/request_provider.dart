@@ -29,7 +29,20 @@ class RequestProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      final snapshot = await _firestore.collection('requests').get();
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        _requests = [];
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      // Ne charger que les demandes du client connecté
+      final snapshot = await _firestore
+          .collection('requests')
+          .where('clientId', isEqualTo: currentUser.uid)
+          .get();
+      
       _requests = snapshot.docs
           .map((doc) => Request.fromMap(doc.data(), doc.id))
           .toList();

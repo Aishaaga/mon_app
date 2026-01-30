@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Règles pour la collection users
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Règles pour la collection requests
+    match /requests/{requestId} {
+      // Lecture: 
+      // - Le propriétaire (clientId) peut lire
+      // - Les artisans peuvent lire les demandes pending
+      allow read: if 
+        request.auth != null && (
+          // Le client propriétaire peut lire sa demande
+          resource.data.clientId == request.auth.uid ||
+          // Les artisans peuvent lire les demandes en attente
+          (resource.data.status == 'pending')
+        );
+      
+      // Création: 
+      // - Seuls les utilisateurs authentifiés peuvent créer
+      // - Le clientId doit correspondre à l'UID de l'utilisateur connecté
+      allow create: if 
+        request.auth != null && 
+        request.auth.uid == request.resource.data.clientId &&
+        request.resource.data.status == 'pending';
+      
+      // Mise à jour:
+      // - Le client peut annuler sa demande
+      // - Les artisans peuvent changer le statut
+      allow update: if 
+        request.auth != null && (
+          // Le client peut annuler sa demande
+          (resource.data.clientId == request.auth.uid && 
+           request.resource.data.status == 'cancelled' &&
+           resource.data.status == 'pending') ||
+          // Les artisans peuvent changer le statut
+          (resource.data.status == 'pending' && 
+           request.resource.data.status in ['accepted', 'in_progress', 'completed'])
+        );
+      
+      // Suppression: uniquement le propriétaire
+      allow delete: if 
+        request.auth != null && 
+        resource.data.clientId == request.auth.uid;
+    }
+  }
+}
