@@ -25,6 +25,7 @@ class _ArtisanHomeState extends State<ArtisanHome> {
         title: 'Tableau de bord Artisan',
         showBackButton: false,
         backgroundColor: Colors.green,
+        leading: null,
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications),
