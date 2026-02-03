@@ -59,14 +59,24 @@ class _ArtisanProfileScreenState extends State<ArtisanProfileScreen> {
     final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
     if (authProvider.userData != null) {
       final userData = authProvider.userData!;
-      _phoneController.text = userData['phone'] ?? '';
-      _addressController.text = userData['address'] ?? '';
-      _descriptionController.text = userData['description'] ?? 'Artisan professionnel avec plus de 5 ans d\'expérience';
-      _experienceController.text = userData['experience'] ?? '5 ans';
-      _selectedCategory = userData['category'] ?? 'Électricien';
+      _phoneController.text = _getStringValue(userData['phone']);
+      _addressController.text = _getStringValue(userData['address']);
+      _descriptionController.text = _getStringValue(userData['description']) ?? 'Artisan professionnel avec plus de 5 ans d\'expérience';
+      _experienceController.text = _getStringValue(userData['experience']) ?? '5 ans';
+      _selectedCategory = _getStringValue(userData['category']) ?? 'Électricien';
       _hourlyRate = (userData['hourlyRate'] as num?)?.toDouble() ?? 150.0;
     }
   }
+
+    // 🔧 Ajoute cette méthode helper
+    String _getStringValue(dynamic value) {
+      if (value == null) return '';
+      if (value is String) return value;
+      if (value is int) return value.toString();
+      if (value is double) return value.toString();
+      if (value is bool) return value.toString();
+      return value.toString();
+    }
 
   @override
   Widget build(BuildContext context) {
@@ -93,16 +103,18 @@ class _ArtisanProfileScreenState extends State<ArtisanProfileScreen> {
           final userData = authProvider.userData!;
           final user = AppUser(
             id: FirebaseAuth.instance.currentUser?.uid ?? '',
-            firstName: userData['fullName']?.split(' ').first ?? '',
-            lastName: userData['fullName']?.split(' ').last ?? '',
-            email: userData['email'] ?? '',
-            phone: userData['phone'] ?? '',
-            address: userData['address'] ?? '',
-            userType: userData['userType'] ?? 'artisan',
+            firstName: _getStringValue(userData['fullName']?.split(' ').first),
+            lastName: _getStringValue(userData['fullName']?.split(' ').last),
+            email: _getStringValue(userData['email']),
+            phone: _getStringValue(userData['phone']),
+            address: _getStringValue(userData['address']),
+            userType: _getStringValue(userData['userType']) ?? 'artisan',
             createdAt: userData['createdAt']?.toDate() ?? DateTime.now(),
             updatedAt: userData['updatedAt']?.toDate(),
-            profileImageUrl: userData['profileImageUrl'],
+            profileImageUrl: _getStringValue(userData['profileImageUrl']),
           );
+
+
 
           return RefreshIndicator(
             onRefresh: () async {
