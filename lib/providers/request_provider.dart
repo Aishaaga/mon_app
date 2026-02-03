@@ -22,6 +22,32 @@ class RequestProvider with ChangeNotifier {
     return _requests.where((request) => request.clientId == currentUser.uid).toList();
   }
 
+  // Charger toutes les demandes disponibles pour les artisans
+  Future<void> loadAvailableRequests() async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      // Charger toutes les demandes avec le statut "pending"
+      final snapshot = await _firestore
+          .collection('requests')
+          .where('status', isEqualTo: 'pending')
+          .get();
+      
+      _requests = snapshot.docs
+          .map((doc) => Request.fromMap(doc.data(), doc.id))
+          .toList();
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Erreur de chargement des demandes disponibles: $e';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   // Charger toutes les demandes
   Future<void> loadRequests() async {
     try {
