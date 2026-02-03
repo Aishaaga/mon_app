@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../../providers/auth_provider.dart';
+import '../../providers/auth_provider.dart' as app_auth;
 import '../../providers/request_provider.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/dashboard_card.dart';
@@ -23,6 +24,7 @@ class _ClientHomeState extends State<ClientHome> {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Tableau de bord',
+        showBackButton: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications),
@@ -76,7 +78,7 @@ class _ClientHomeState extends State<ClientHome> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Section utilisateur
-              Consumer<AuthProvider>(
+              Consumer<app_auth.AuthProvider>(
                 builder: (context, authProvider, child) {
                   if (authProvider.userData == null) {
                     return const Card(
