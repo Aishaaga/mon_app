@@ -48,6 +48,31 @@ class RequestProvider with ChangeNotifier {
     }
   }
 
+  // Charger toutes les demandes (pour my_jobs)
+  Future<void> loadAllRequests() async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      // Charger TOUTES les demandes sans filtre
+      final snapshot = await _firestore
+          .collection('requests')
+          .get();
+      
+      _requests = snapshot.docs
+          .map((doc) => Request.fromMap(doc.data(), doc.id))
+          .toList();
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Erreur de chargement de toutes les demandes: $e';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   // Charger toutes les demandes
   Future<void> loadRequests() async {
     try {
@@ -150,12 +175,12 @@ class RequestProvider with ChangeNotifier {
       if (index != -1) {
         final currentRequest = _requests[index];
         _requests[index] = currentRequest.copyWith(
-        status: data['status'] ?? currentRequest.status,
-        category: data['category'] ?? currentRequest.category,
-        description: data['description'] ?? currentRequest.description,
-        estimatedBudget: data['estimatedBudget'] ?? currentRequest.estimatedBudget,
-        address: data['address'] ?? currentRequest.address,   
-        updatedAt: Timestamp.now(),
+          status: data['status'] ?? currentRequest.status,
+          category: data['category'] ?? currentRequest.category,
+          description: data['description'] ?? currentRequest.description,
+          estimatedBudget: data['estimatedBudget'] ?? currentRequest.estimatedBudget,
+          address: data['address'] ?? currentRequest.address,
+          updatedAt: Timestamp.now(),
         );
       }
 

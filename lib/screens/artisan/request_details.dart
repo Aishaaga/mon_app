@@ -450,6 +450,10 @@ class _ArtisanRequestDetailsScreenState extends State<ArtisanRequestDetailsScree
   }
 
   Widget _buildQuoteCard(Request request) {
+    if (request.status != 'pending') {
+      return const SizedBox.shrink(); // Ne pas afficher si la demande n'est plus pending
+    }
+
     return Card(
       elevation: 4,
       child: Padding(
@@ -469,112 +473,29 @@ class _ArtisanRequestDetailsScreenState extends State<ArtisanRequestDetailsScree
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            
-            // Prix estimé
+            const SizedBox(height: 12),
             Text(
-              'Prix estimé (DH)',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Slider(
-              value: _estimatedPrice,
-              min: 0,
-              max: 5000,
-              divisions: 50,
-              label: '${_estimatedPrice.toInt()} DH',
-              onChanged: (value) {
-                setState(() {
-                  _estimatedPrice = value;
-                });
-              },
-            ),
-            Text(
-              '${_estimatedPrice.toInt()} DH',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
+              'Proposez votre tarif et décrivez votre solution pour cette demande.',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
               ),
             ),
-            
             const SizedBox(height: 16),
             
-            // Durée estimée
-            Text(
-              'Durée estimée (jours)',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
-                    value: _estimatedDuration.toDouble(),
-                    min: 1,
-                    max: 30,
-                    divisions: 29,
-                    label: '$_estimatedDuration jours',
-                    onChanged: (value) {
-                      setState(() {
-                        _estimatedDuration = value.toInt();
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Container(
-                  width: 60,
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '$_estimatedDuration',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Message
-            Text(
-              'Message pour le client',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _messageController,
-              decoration: const InputDecoration(
-                hintText: 'Décrivez votre proposition et votre expertise...',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 4,
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Bouton envoyer
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _isSendingQuote ? null : _sendQuote,
-                icon: _isSendingQuote 
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send),
-                label: Text(_isSendingQuote ? 'Envoi en cours...' : 'Envoyer le devis'),
+                onPressed: () {
+                  context.go('/artisan/send-quote/${request.id}');
+                },
+                icon: const Icon(Icons.send),
+                label: const Text('Créer un devis détaillé'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
