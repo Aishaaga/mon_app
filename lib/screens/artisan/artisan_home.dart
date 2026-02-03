@@ -21,6 +21,10 @@ class ArtisanHome extends StatelessWidget {
               child: const Text('Mes interventions'),
             ),
             ElevatedButton(
+              onPressed: () => context.go('/artisan/messages'),
+              child: const Text('Messages'),
+            ),
+            ElevatedButton(
               onPressed: () => context.go('/artisan/profile'),
               child: const Text('Mon profil'),
             ),

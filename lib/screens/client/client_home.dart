@@ -1,49 +1,312 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
-class ClientHome extends StatelessWidget {
+import '../../providers/auth_provider.dart';
+import '../../providers/request_provider.dart';
+import '../../widgets/custom_app_bar.dart';
+import '../../widgets/dashboard_card.dart';
+import '../../widgets/user_info_card.dart';
+import '../../models/user.dart';
+
+class ClientHome extends StatefulWidget {
   const ClientHome({super.key});
 
   @override
+  State<ClientHome> createState() => _ClientHomeState();
+}
+
+class _ClientHomeState extends State<ClientHome> {
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Accueil Client')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: () => context.go('/client/create-request'),
-              child: const Text('Nouvelle demande'),
-            ),
-            ElevatedButton(
-              onPressed: () => context.go('/client/my-requests'),
-              child: const Text('Mes demandes'),
-            ),
-            ElevatedButton(
-              onPressed: () => context.go('/client/search-artisans'),
-              child: const Text('Rechercher artisans'),
-            ),
-            ElevatedButton(
-              onPressed: () => context.go('/client/profile'),
-              child: const Text('Mon profil'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                // 1. Déconnecter
-                await FirebaseAuth.instance.signOut();
+      appBar: CustomAppBar(
+        title: 'Tableau de bord',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Notifications bientôt disponibles')),
+              );
+            },
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'profile') {
+                context.go('/client/profile');
+              } else if (value == 'logout') {
+                _handleLogout();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person),
+                    SizedBox(width: 8),
+                    Text('Mon profil'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Déconnexion', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          final requestProvider = Provider.of<RequestProvider>(context, listen: false);
+          await requestProvider.loadRequests();
+        },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Section utilisateur
+              Consumer<AuthProvider>(
+                builder: (context, authProvider, child) {
+                  if (authProvider.userData == null) {
+                    return const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(width: 16),
+                            Text('Chargement du profil...'),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
 
-                // 2. Forcer la navigation vers login
-                if (context.mounted) {
-                  context.go('/login');
-                }
-              },
-              child: const Text('Déconnexion'),
-            ),
-          ],
+                  // Créer un AppUser temporaire depuis les données
+                  final userData = authProvider.userData!;
+                  final user = AppUser(
+                    id: FirebaseAuth.instance.currentUser?.uid ?? '',
+                    firstName: userData['fullName']?.split(' ').first ?? '',
+                    lastName: userData['fullName']?.split(' ').last ?? '',
+                    email: userData['email'] ?? '',
+                    phone: userData['phone'] ?? '',
+                    address: userData['address'] ?? '',
+                    userType: userData['userType'] ?? 'client',
+                    createdAt: userData['createdAt']?.toDate() ?? DateTime.now(),
+                    updatedAt: userData['updatedAt']?.toDate(),
+                    profileImageUrl: userData['profileImageUrl'],
+                  );
+
+                  return UserInfoCard(user: user);
+                },
+              ),
+
+              const SizedBox(height: 24),
+
+              // Statistiques
+              Consumer<RequestProvider>(
+                builder: (context, requestProvider, child) {
+                  final clientRequests = requestProvider.clientRequests;
+                  final pendingCount = clientRequests.where((r) => r.status == 'pending').length;
+                  final inProgressCount = clientRequests.where((r) => r.status == 'in_progress').length;
+                  final completedCount = clientRequests.where((r) => r.status == 'completed').length;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mes statistiques',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: StatsCard(
+                              title: 'Total demandes',
+                              value: clientRequests.length.toString(),
+                              icon: Icons.assignment,
+                              color: Colors.blue,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: StatsCard(
+                              title: 'En attente',
+                              value: pendingCount.toString(),
+                              icon: Icons.pending,
+                              color: Colors.orange,
+                              subtitle: pendingCount > 0 ? 'Nouveaux devis' : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: StatsCard(
+                              title: 'En cours',
+                              value: inProgressCount.toString(),
+                              icon: Icons.build,
+                              color: Colors.green,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: StatsCard(
+                              title: 'Terminées',
+                              value: completedCount.toString(),
+                              icon: Icons.check_circle,
+                              color: Colors.purple,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+
+              const SizedBox(height: 24),
+
+              // Actions rapides
+              Text(
+                'Actions rapides',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              DashboardCard(
+                title: 'Nouvelle demande',
+                subtitle: 'Créer une demande de service',
+                icon: Icons.add_circle,
+                iconColor: Colors.green,
+                onTap: () => context.go('/client/create-request'),
+              ),
+
+              DashboardCard(
+                title: 'Mes demandes',
+                subtitle: 'Voir et suivre mes demandes',
+                icon: Icons.assignment,
+                iconColor: Colors.blue,
+                onTap: () => context.go('/client/my-requests'),
+              ),
+
+              DashboardCard(
+                title: 'Messages',
+                subtitle: 'Communiquer avec les artisans',
+                icon: Icons.message,
+                iconColor: Colors.purple,
+                onTap: () => context.go('/client/messages'),
+              ),
+
+              DashboardCard(
+                title: 'Rechercher artisans',
+                subtitle: 'Trouver des professionnels',
+                icon: Icons.search,
+                iconColor: Colors.orange,
+                onTap: () => context.go('/client/search-artisans'),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Section d'aide
+              Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.help_outline,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Besoin d\'aide ?',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Notre équipe support est disponible pour vous aider avec toutes vos questions.',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Support bientôt disponible')),
+                                );
+                              },
+                              icon: const Icon(Icons.support_agent),
+                              label: const Text('Contacter le support'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('FAQ bientôt disponible')),
+                                );
+                              },
+                              icon: const Icon(Icons.question_answer),
+                              label: const Text('FAQ'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _handleLogout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      if (mounted) {
+        context.go('/login');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur de déconnexion: $e')),
+        );
+      }
+    }
   }
 }

@@ -11,7 +11,7 @@ class ClientMessagesListScreen extends StatelessWidget {
         title: const Text('Messages'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/client/home'),
         ),
       ),
       body: Center(

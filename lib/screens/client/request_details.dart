@@ -105,10 +105,25 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
           onPressed: () => context.go('/client/my-requests'),
         ),
         actions: [
+          IconButton(
+            icon: _isLoading 
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.refresh),
+            onPressed: _isLoading ? null : _loadRequest,
+            tooltip: 'Rafraîchir',
+          ),
           if (_request?.status == 'pending')
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: () => _editRequest(),
+              tooltip: 'Modifier',
             ),
         ],
       ),
