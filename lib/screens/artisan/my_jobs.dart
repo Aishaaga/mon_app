@@ -4,10 +4,22 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../providers/request_provider.dart';
+import '../../providers/job_provider.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/dashboard_card.dart';
-import '../../models/request.dart';
+import '../../models/job.dart';
+
+class MyJobsWrapper extends StatelessWidget {
+  const MyJobsWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => JobProvider(),
+      child: const MyJobsScreen(),
+    );
+  }
+}
 
 class MyJobsScreen extends StatefulWidget {
   const MyJobsScreen({super.key});
@@ -38,15 +50,51 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
 
   Future<void> _loadMyJobs() async {
     try {
-      // Charger toutes les demandes pour voir celles acceptées par l'artisan
-      await Provider.of<RequestProvider>(context, listen: false).loadAllRequests();
+      // Vérifier si le JobProvider est disponible
+      final jobProvider = Provider.of<JobProvider>(context, listen: false);
+      print('✅ JobProvider accessible');
+      
+      // Charger les jobs de l'artisan depuis Firestore
+      await jobProvider.loadMyJobs();
+      print('✅ Jobs chargés: ${jobProvider.myJobs.length}');
+      
+      // Si aucun job et qu'on a des données de test, les utiliser
+      if (jobProvider.myJobs.isEmpty) {
+        print('ℹ️ Aucun job trouvé, utilisation des données de test si disponibles');
+        // Ne pas créer automatiquement de données de test
+        // L'utilisateur doit cliquer sur le bouton si besoin
+      }
     } catch (e) {
-      print('Erreur chargement interventions: $e');
+      print('❌ Erreur JobProvider: $e');
+      print('❌ Erreur chargement interventions: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Vérification du Provider au build
+    try {
+      final jobProvider = Provider.of<JobProvider>(context, listen: false);
+      print('✅ JobProvider accessible dans build');
+    } catch (e) {
+      print('❌ JobProvider NON accessible dans build: $e');
+      // Afficher un message d'erreur si le provider n'est pas disponible
+      return Scaffold(
+        appBar: AppBar(title: const Text('Mes interventions')),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error, size: 64, color: Colors.red),
+              SizedBox(height: 16),
+              Text('Provider non disponible'),
+              Text('Veuillez redémarrer l\'application'),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Mes interventions',
@@ -65,14 +113,14 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
         onRefresh: () async {
           await _loadMyJobs();
         },
-        child: Consumer<RequestProvider>(
-          builder: (context, requestProvider, child) {
-            if (requestProvider.isLoading) {
+        child: Consumer<JobProvider>(
+          builder: (context, jobProvider, child) {
+            if (jobProvider.isLoading) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            // Filtrer les demandes acceptées par l'artisan (simulation)
-            final myJobs = _filterJobs(requestProvider.requests);
+            // Filtrer les jobs de l'artisan
+            final myJobs = _filterJobs(jobProvider.myJobs);
 
             if (myJobs.isEmpty) {
               return Center(
@@ -110,6 +158,34 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
                         foregroundColor: Colors.white,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _createTestData,
+                            icon: const Icon(Icons.add_circle_outline),
+                            label: const Text('Créer données de test'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.blue,
+                              side: const BorderSide(color: Colors.blue),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _clearTestData,
+                            icon: const Icon(Icons.clear),
+                            label: const Text('Effacer données'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               );
@@ -139,20 +215,12 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
     );
   }
 
-List<Request> _filterJobs(List<Request> requests) {
-  // Simulation: filtrer les demandes qui ont été acceptées par l'artisan
-  // En réalité, cela viendrait d'une collection "quotes" ou "jobs" avec artisanId
-  final currentUser = FirebaseAuth.instance.currentUser;
-  
-  var filtered = requests.where((r) => 
-    (r.status == 'accepted' || r.status == 'in_progress' || r.status == 'completed') &&
-    // Simulation: considérer que les demandes acceptées ont un artisanId
-    // Vérifier d'abord si r.id n'est pas null avant d'appeler contains
-    ((r.id?.contains('artisan') ?? false) || r.status != 'pending') // Logique de simulation
-  ).toList();
+List<Job> _filterJobs(List<Job> jobs) {
+  // Filtrer les jobs par statut
+  var filtered = jobs;
 
   if (_selectedStatus != 'all') {
-    filtered = filtered.where((r) => r.status == _selectedStatus).toList();
+    filtered = jobs.where((job) => job.status == _selectedStatus).toList();
   }
 
   // Tri
@@ -171,7 +239,7 @@ List<Request> _filterJobs(List<Request> requests) {
   return filtered;
 }
 
-  Widget _buildStatsHeader(List<Request> jobs) {
+  Widget _buildStatsHeader(List<Job> jobs) {
         int accepted = 0;
         int inProgress = 0;
         int completed = 0;
@@ -187,7 +255,7 @@ List<Request> _filterJobs(List<Request> requests) {
               break;
             case 'completed':
               completed++;
-              totalEarnings += job.estimatedBudget;
+              totalEarnings += job.earnings;
               break;
           }
         }
@@ -279,7 +347,7 @@ List<Request> _filterJobs(List<Request> requests) {
     );
   }
 
-  Widget _buildJobCard(Request job) {
+  Widget _buildJobCard(Job job) {
     Color statusColor;
     String statusText;
     IconData statusIcon;
@@ -524,18 +592,40 @@ List<Request> _filterJobs(List<Request> requests) {
     );
   }
 
-  void _startJob(Request job) {
-    // TODO: Mettre à jour le statut en "in_progress"
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Intervention commencée!')),
-    );
+  void _startJob(Job job) async {
+    try {
+      final jobProvider = Provider.of<JobProvider>(context, listen: false);
+      await jobProvider.startJob(job.id!);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Intervention commencée!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e')),
+      );
+    }
   }
 
-  void _completeJob(Request job) {
-    // TODO: Mettre à jour le statut en "completed"
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Intervention terminée!')),
-    );
+  void _completeJob(Job job) async {
+    try {
+      final jobProvider = Provider.of<JobProvider>(context, listen: false);
+      await jobProvider.completeJob(job.id!);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Intervention terminée!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e')),
+      );
+    }
   }
 
   String _formatDate(Timestamp timestamp) {
@@ -551,6 +641,117 @@ List<Request> _filterJobs(List<Request> requests) {
       return 'Il y a ${difference.inDays} jours';
     } else {
       return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
+  // Fonction pour effacer les données de test
+  void _clearTestData() async {
+    try {
+      final jobProvider = Provider.of<JobProvider>(context, listen: false);
+      
+      // Effacer tous les jobs locaux (uniquement les données de test)
+      jobProvider.clearAllJobs();
+      
+      // Recharger depuis Firestore
+      await jobProvider.loadMyJobs();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Données de test effacées! Rechargement depuis Firestore...'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e')),
+      );
+    }
+  }
+
+  // Fonction pour créer des données de test
+  void _createTestData() async {
+    try {
+      final jobProvider = Provider.of<JobProvider>(context, listen: false);
+      
+      // Créer des jobs de test avec différents statuts
+      final testJobs = [
+        Job(
+          id: 'test-accepted-1',
+          requestId: 'request-1',
+          artisanId: FirebaseAuth.instance.currentUser?.uid ?? 'test-artisan',
+          clientId: 'client-test-1',
+          category: 'Plomberie',
+          description: 'Réparation fuite d\'eau dans la cuisine. Le robinet fuit et il faut changer les joints.',
+          photos: [],
+          estimatedBudget: 1500.0,
+          address: '123 Rue Test, Casablanca',
+          status: 'accepted',
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+          quotePrice: 1500.0,
+          quoteDescription: 'Réparation complète du robinet et changement des joints',
+          quoteDuration: 2,
+          quoteMaterials: ['Joints', 'Robinet', 'Outils'],
+          quoteNotes: 'Matériel inclus dans le prix',
+        ),
+        Job(
+          id: 'test-in-progress-1',
+          requestId: 'request-2',
+          artisanId: FirebaseAuth.instance.currentUser?.uid ?? 'test-artisan',
+          clientId: 'client-test-2',
+          category: 'Électricité',
+          description: 'Installation de nouveaux points lumineux dans le salon. Prévoir 3 ampoules LED.',
+          photos: [],
+          estimatedBudget: 2000.0,
+          address: '456 Avenue Test, Rabat',
+          status: 'in_progress',
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+          startedAt: Timestamp.now(),
+          quotePrice: 2000.0,
+          quoteDescription: 'Installation de 3 points lumineux avec ampoules LED',
+          quoteDuration: 3,
+          quoteMaterials: ['Ampoules LED', 'Câbles', 'Interrupteurs'],
+          quoteNotes: 'Garantie 2 ans sur les installations',
+        ),
+        Job(
+          id: 'test-completed-1',
+          requestId: 'request-3',
+          artisanId: FirebaseAuth.instance.currentUser?.uid ?? 'test-artisan',
+          clientId: 'client-test-3',
+          category: 'Peinture',
+          description: 'Peinture complète des murs du salon et des chambres. Couleur blanche.',
+          photos: [],
+          estimatedBudget: 3500.0,
+          address: '789 Boulevard Test, Marrakech',
+          status: 'completed',
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+          startedAt: Timestamp.fromDate(DateTime.now().subtract(const Duration(days: 2))),
+          completedAt: Timestamp.fromDate(DateTime.now().subtract(const Duration(days: 1))),
+          quotePrice: 3500.0,
+          quoteDescription: 'Peinture complète salon + 2 chambres',
+          quoteDuration: 5,
+          quoteMaterials: ['Peinture blanche', 'Pinceaux', 'Rouleaux'],
+          quoteNotes: 'Travail garanti 1 an',
+        ),
+      ];
+
+      // Ajouter les jobs de test au provider
+      for (final job in testJobs) {
+        jobProvider.addTestJob(job);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Données de test créées avec succès!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e')),
+      );
     }
   }
 }

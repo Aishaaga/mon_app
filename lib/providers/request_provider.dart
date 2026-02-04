@@ -223,9 +223,10 @@ class RequestProvider with ChangeNotifier {
     return _requests.where((request) => request.status == 'pending').toList();
   }
 
-  // Obtenir les demandes par catégorie
-  List<Request> getRequestsByCategory(String category) {
-    return _requests.where((request) => request.category == category).toList();
+  // Ajouter une demande (pour les tests)
+  void addTestRequest(Request request) {
+    _requests.add(request);
+    notifyListeners();
   }
 
   // Effacer les erreurs

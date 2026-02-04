@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../providers/request_provider.dart';
+import '../../providers/job_provider.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../models/request.dart';
 
@@ -463,34 +464,66 @@ class _SendQuoteScreenState extends State<SendQuoteScreen> {
     });
 
     try {
-      // TODO: Implémenter l'envoi du devis à Firestore
-      await Future.delayed(const Duration(seconds: 3)); // Simulation
-
-      // Mettre à jour le statut de la demande pour la faire apparaître dans my_jobs
       final requestProvider = Provider.of<RequestProvider>(context, listen: false);
-      await requestProvider.updateRequest(widget.requestId, {
-        'status': 'accepted', // Simuler l'acceptation automatique
-        'artisanId': FirebaseAuth.instance.currentUser?.uid,
-        'quotePrice': _estimatedPrice,
-        'quoteDescription': _descriptionController.text,
-        'quoteDuration': _estimatedDuration,
-        'quoteMaterials': _materials,
-        'quoteNotes': _notesController.text,
-        'quoteStartDate': _startDate != null ? Timestamp.fromDate(_startDate!) : null,
-        'quoteStartTime': _startTime != null ? '${_startTime!.hour}:${_startTime!.minute}' : null,
-        'quotedAt': Timestamp.now(),
-      });
+      final jobProvider = Provider.of<JobProvider>(context, listen: false);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Devis envoyé avec succès! Le client a accepté votre proposition.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        context.go('/artisan/my-jobs');
+      // Charger toutes les demandes pour trouver celle-ci
+      await requestProvider.loadAllRequests();
+      
+      // Trouver la demande originale
+      final request = requestProvider.requests
+          .where((r) => r.id == widget.requestId)
+          .firstOrNull;
+
+      if (request == null) {
+        print('❌ Demande non trouvée: ${widget.requestId}');
+        print('❌ Demandes disponibles: ${requestProvider.requests.map((r) => r.id).toList()}');
+        throw Exception('Demande non trouvée: ${widget.requestId}');
+      }
+
+      print('✅ Demande trouvée: ${request.category}');
+
+      // Créer un Job dans la collection jobs
+      final jobId = await jobProvider.createJob(
+        requestId: request.id!,
+        clientId: request.clientId,
+        category: request.category,
+        description: request.description,
+        photos: request.photos!,
+        estimatedBudget: request.estimatedBudget,
+        address: request.address,
+        quotePrice: _estimatedPrice,
+        quoteDescription: _descriptionController.text,
+        quoteDuration: _estimatedDuration,
+        quoteMaterials: _materials,
+        quoteNotes: _notesController.text,
+      );
+
+      if (jobId != null) {
+        print('✅ Job créé avec ID: $jobId');
+
+        // Mettre à jour le statut de la demande originale
+        await requestProvider.updateRequest(widget.requestId, {
+          'status': 'accepted',
+          'artisanId': FirebaseAuth.instance.currentUser?.uid,
+        });
+
+        print('✅ Demande mise à jour vers accepted');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Devis envoyé avec succès! Le client a accepté votre proposition.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          context.go('/artisan/my-jobs');
+        }
+      } else {
+        throw Exception('Échec de création du job');
       }
     } catch (e) {
+      print('❌ Erreur envoi devis: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e')),

@@ -5,6 +5,7 @@ import 'navigation/app_router.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/request_provider.dart';
+import 'providers/job_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +17,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()), // ✅ ICI
         ChangeNotifierProvider(create: (_) => RequestProvider()), // ✅ Ajouté
+        ChangeNotifierProvider(create: (_) => JobProvider()), // ✅ JobProvider ajouté
         // Ajoute tes autres providers ici
         // ChangeNotifierProvider(create: (_) => UserProvider()),
       ],

@@ -192,7 +192,7 @@ class AppRouter {
         path: '/artisan/my-jobs',
         name: 'my_jobs',
         pageBuilder: (context, state) =>
-            MaterialPage(key: state.pageKey, child: const MyJobsScreen()),
+            MaterialPage(key: state.pageKey, child: const MyJobsWrapper()),
       ),
       GoRoute(
         path: '/artisan/job/:id',
