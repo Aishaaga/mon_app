@@ -464,63 +464,62 @@ class _SendQuoteScreenState extends State<SendQuoteScreen> {
     });
 
     try {
-      final requestProvider = Provider.of<RequestProvider>(context, listen: false);
-      final jobProvider = Provider.of<JobProvider>(context, listen: false);
-
-      // Charger toutes les demandes pour trouver celle-ci
-      await requestProvider.loadAllRequests();
+      final firestore = FirebaseFirestore.instance;
+      final auth = FirebaseAuth.instance;
       
-      // Trouver la demande originale
-      final request = requestProvider.requests
-          .where((r) => r.id == widget.requestId)
-          .firstOrNull;
+      print('🔍 Recherche de la demande: ${widget.requestId}');
 
-      if (request == null) {
-        print('❌ Demande non trouvée: ${widget.requestId}');
-        print('❌ Demandes disponibles: ${requestProvider.requests.map((r) => r.id).toList()}');
+      // Récupérer la demande depuis Firestore
+      final requestDoc = await firestore.collection('requests').doc(widget.requestId).get();
+      
+      if (!requestDoc.exists) {
         throw Exception('Demande non trouvée: ${widget.requestId}');
       }
 
-      print('✅ Demande trouvée: ${request.category}');
+      final requestData = requestDoc.data()!;
+      print('✅ Demande trouvée: ${requestData['category']}');
 
-      // Créer un Job dans la collection jobs
-      final jobId = await jobProvider.createJob(
-        requestId: request.id!,
-        clientId: request.clientId,
-        category: request.category,
-        description: request.description,
-        photos: request.photos!,
-        estimatedBudget: request.estimatedBudget,
-        address: request.address,
-        quotePrice: _estimatedPrice,
-        quoteDescription: _descriptionController.text,
-        quoteDuration: _estimatedDuration,
-        quoteMaterials: _materials,
-        quoteNotes: _notesController.text,
-      );
+      // Créer le job directement dans Firestore
+      final jobData = {
+        'requestId': widget.requestId,
+        'artisanId': auth.currentUser?.uid,
+        'clientId': requestData['clientId'],
+        'category': requestData['category'],
+        'description': requestData['description'],
+        'photos': List<String>.from(requestData['photos'] ?? []),
+        'estimatedBudget': requestData['estimatedBudget'],
+        'address': requestData['address'],
+        'status': 'accepted',
+        'createdAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+        'quotedAt': Timestamp.now(),
+        'quotePrice': _estimatedPrice,
+        'quoteDescription': _descriptionController.text,
+        'quoteDuration': _estimatedDuration,
+        'quoteMaterials': _materials,
+        'quoteNotes': _notesController.text,
+      };
 
-      if (jobId != null) {
-        print('✅ Job créé avec ID: $jobId');
+      final jobRef = await firestore.collection('jobs').add(jobData);
+      print('✅ Job créé avec ID: ${jobRef.id}');
 
-        // Mettre à jour le statut de la demande originale
-        await requestProvider.updateRequest(widget.requestId, {
-          'status': 'accepted',
-          'artisanId': FirebaseAuth.instance.currentUser?.uid,
-        });
+      // Mettre à jour le statut de la demande
+      await firestore.collection('requests').doc(widget.requestId).update({
+        'status': 'accepted',
+        'artisanId': auth.currentUser?.uid,
+        'updatedAt': Timestamp.now(),
+      });
 
-        print('✅ Demande mise à jour vers accepted');
+      print('✅ Demande mise à jour vers accepted');
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Devis envoyé avec succès! Le client a accepté votre proposition.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          context.go('/artisan/my-jobs');
-        }
-      } else {
-        throw Exception('Échec de création du job');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Devis envoyé avec succès! Le client a accepté votre proposition.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.go('/artisan/my-jobs');
       }
     } catch (e) {
       print('❌ Erreur envoi devis: $e');

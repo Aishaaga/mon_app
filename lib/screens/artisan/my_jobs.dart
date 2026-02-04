@@ -31,6 +31,7 @@ class MyJobsScreen extends StatefulWidget {
 class _MyJobsScreenState extends State<MyJobsScreen> {
   String _selectedStatus = 'all';
   String _sortBy = 'recent';
+  List<Job> _localJobs = []; // Stockage local des jobs
 
   final List<String> _statusOptions = [
     'all',
@@ -50,49 +51,59 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
 
   Future<void> _loadMyJobs() async {
     try {
-      // Vérifier si le JobProvider est disponible
-      final jobProvider = Provider.of<JobProvider>(context, listen: false);
-      print('✅ JobProvider accessible');
+      print('🔍 Chargement des jobs depuis Firestore...');
       
-      // Charger les jobs de l'artisan depuis Firestore
-      await jobProvider.loadMyJobs();
-      print('✅ Jobs chargés: ${jobProvider.myJobs.length}');
+      final firestore = FirebaseFirestore.instance;
+      final auth = FirebaseAuth.instance;
       
-      // Si aucun job et qu'on a des données de test, les utiliser
-      if (jobProvider.myJobs.isEmpty) {
-        print('ℹ️ Aucun job trouvé, utilisation des données de test si disponibles');
-        // Ne pas créer automatiquement de données de test
-        // L'utilisateur doit cliquer sur le bouton si besoin
+      if (auth.currentUser == null) {
+        print('❌ Utilisateur non connecté');
+        return;
+      }
+
+      // Récupérer les jobs de l'artisan depuis Firestore
+      final snapshot = await firestore
+          .collection('jobs')
+          .where('artisanId', isEqualTo: auth.currentUser!.uid)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      // Convertir en objets Job
+      final jobs = snapshot.docs
+          .map((doc) => Job.fromMap(doc.data(), doc.id))
+          .toList();
+
+      print('✅ Jobs chargés: ${jobs.length}');
+      
+      // Mettre à jour le provider si disponible
+      try {
+        final jobProvider = Provider.of<JobProvider>(context, listen: false);
+        jobProvider.clearAllJobs();
+        for (final job in jobs) {
+          jobProvider.addTestJob(job);
+        }
+        print('✅ Jobs mis à jour dans le provider');
+      } catch (e) {
+        print('⚠️ Provider non disponible, utilisation locale');
+        // Stocker localement si le provider n'est pas disponible
+        _localJobs = jobs;
       }
     } catch (e) {
-      print('❌ Erreur JobProvider: $e');
-      print('❌ Erreur chargement interventions: $e');
+      print('❌ Erreur chargement jobs: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Vérification du Provider au build
+    // Obtenir les jobs depuis le provider ou localement
+    List<Job> jobs;
     try {
       final jobProvider = Provider.of<JobProvider>(context, listen: false);
       print('✅ JobProvider accessible dans build');
+      jobs = jobProvider.myJobs;
     } catch (e) {
-      print('❌ JobProvider NON accessible dans build: $e');
-      // Afficher un message d'erreur si le provider n'est pas disponible
-      return Scaffold(
-        appBar: AppBar(title: const Text('Mes interventions')),
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error, size: 64, color: Colors.red),
-              SizedBox(height: 16),
-              Text('Provider non disponible'),
-              Text('Veuillez redémarrer l\'application'),
-            ],
-          ),
-        ),
-      );
+      print('⚠️ JobProvider NON accessible, utilisation locale: ${_localJobs.length} jobs');
+      jobs = _localJobs;
     }
 
     return Scaffold(
@@ -113,14 +124,10 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
         onRefresh: () async {
           await _loadMyJobs();
         },
-        child: Consumer<JobProvider>(
-          builder: (context, jobProvider, child) {
-            if (jobProvider.isLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            // Filtrer les jobs de l'artisan
-            final myJobs = _filterJobs(jobProvider.myJobs);
+        child: Builder(
+          builder: (context) {
+            // Filtrer les jobs
+            final myJobs = _filterJobs(jobs);
 
             if (myJobs.isEmpty) {
               return Center(
@@ -134,21 +141,22 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Aucune intervention',
+                      'Aucune intervention trouvée',
                       style: TextStyle(
                         fontSize: 18,
                         color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Envoyez des devis pour commencer à travailler',
+                      'Commencez par envoyer des devis aux demandes',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[500],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                     ElevatedButton.icon(
                       onPressed: () => context.go('/artisan/available-requests'),
                       icon: const Icon(Icons.search),
