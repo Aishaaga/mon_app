@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart' as app_auth;
 import '../../providers/request_provider.dart';
+import '../../providers/job_provider.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/dashboard_card.dart';
 import '../../widgets/user_info_card.dart';
@@ -25,7 +26,7 @@ class _ArtisanHomeState extends State<ArtisanHome> {
         title: 'Tableau de bord Artisan',
         showBackButton: false,
         backgroundColor: Colors.green,
-        leading: null,
+        leading: const SizedBox(), // Force un leading vide au lieu de null
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications),
@@ -70,8 +71,12 @@ class _ArtisanHomeState extends State<ArtisanHome> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
+          final jobProvider = Provider.of<JobProvider>(context, listen: false);
           final requestProvider = Provider.of<RequestProvider>(context, listen: false);
-          await requestProvider.loadRequests();
+          await Future.wait([
+            jobProvider.loadMyJobs(),
+            requestProvider.loadRequests(),
+          ]);
         },
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -118,14 +123,23 @@ class _ArtisanHomeState extends State<ArtisanHome> {
               const SizedBox(height: 24),
 
               // Statistiques
-              Consumer<RequestProvider>(
-                builder: (context, requestProvider, child) {
+              Consumer2<RequestProvider, JobProvider>(
+                builder: (context, requestProvider, jobProvider, child) {
+                  // Charger les données si nécessaire
+                  if (jobProvider.myJobs.isEmpty) {
+                    jobProvider.loadMyJobs();
+                  }
+                  if (requestProvider.availableRequests.isEmpty) {
+                    requestProvider.loadRequests();
+                  }
+                  
                   final availableRequests = requestProvider.availableRequests;
-                  final myJobs = requestProvider.requests.where((r) => 
-                    r.status == 'accepted' || r.status == 'in_progress'
+                  final myJobs = jobProvider.myJobs;
+                  final activeJobs = myJobs.where((job) => 
+                    job.status == 'accepted' || job.status == 'in_progress'
                   ).length;
-                  final completedJobs = requestProvider.requests.where((r) => 
-                    r.status == 'completed'
+                  final completedJobs = myJobs.where((job) => 
+                    job.status == 'completed'
                   ).length;
 
                   return Column(
@@ -153,7 +167,7 @@ class _ArtisanHomeState extends State<ArtisanHome> {
                           Expanded(
                             child: StatsCard(
                               title: 'Mes interventions',
-                              value: myJobs.toString(),
+                              value: activeJobs.toString(),
                               icon: Icons.build,
                               color: Colors.green,
                             ),

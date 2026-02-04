@@ -39,7 +39,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               icon: const Icon(Icons.arrow_back),
               onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
             )
-          : null),
+          : const SizedBox(width: 48)), // SizedBox vide au lieu de null
       actions: actions,
       flexibleSpace: Container(
         decoration: BoxDecoration(

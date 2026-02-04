@@ -61,17 +61,19 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
         return;
       }
 
-      // Récupérer les jobs de l'artisan depuis Firestore
+      // Récupérer les jobs de l'artisan depuis Firestore (sans tri pour éviter l'index)
       final snapshot = await firestore
           .collection('jobs')
           .where('artisanId', isEqualTo: auth.currentUser!.uid)
-          .orderBy('createdAt', descending: true)
           .get();
 
-      // Convertir en objets Job
+      // Convertir en objets Job et trier localement
       final jobs = snapshot.docs
           .map((doc) => Job.fromMap(doc.data(), doc.id))
           .toList();
+
+      // Trier localement par date de création (plus récent d'abord)
+      jobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       print('✅ Jobs chargés: ${jobs.length}');
       
@@ -88,6 +90,11 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
         // Stocker localement si le provider n'est pas disponible
         _localJobs = jobs;
       }
+      
+      // Forcer la mise à jour de l'interface
+      if (mounted) {
+        setState(() {});
+      }
     } catch (e) {
       print('❌ Erreur chargement jobs: $e');
     }
@@ -101,10 +108,16 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
       final jobProvider = Provider.of<JobProvider>(context, listen: false);
       print('✅ JobProvider accessible dans build');
       jobs = jobProvider.myJobs;
+      print('📊 Jobs depuis provider: ${jobs.length}');
     } catch (e) {
       print('⚠️ JobProvider NON accessible, utilisation locale: ${_localJobs.length} jobs');
       jobs = _localJobs;
+      print('📊 Jobs depuis local: ${jobs.length}');
     }
+
+    // Filtrer les jobs
+    final myJobs = _filterJobs(jobs);
+    print('📊 Jobs après filtrage: ${myJobs.length}');
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -126,10 +139,10 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
         },
         child: Builder(
           builder: (context) {
-            // Filtrer les jobs
-            final myJobs = _filterJobs(jobs);
+            print('🏗️ Builder rebuild avec ${myJobs.length} jobs');
 
             if (myJobs.isEmpty) {
+              print('❌ Aucun job à afficher');
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -199,6 +212,7 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
               );
             }
 
+            print('✅ Affichage de ${myJobs.length} jobs');
             return Column(
               children: [
                 // Statistiques
@@ -211,6 +225,7 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
                     itemCount: myJobs.length,
                     itemBuilder: (context, index) {
                       final job = myJobs[index];
+                      print('🎯 Construction carte job: ${job.category} - ${job.status}');
                       return _buildJobCard(job);
                     },
                   ),
@@ -487,6 +502,17 @@ List<Job> _filterJobs(List<Job> jobs) {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () {
+                        print('🔍 Clic sur "Voir détails" pour job: ${job.id}');
+                        print('📄 Job category: ${job.category}');
+                        print('📊 Job status: ${job.status}');
+                        if (job.id == null || job.id!.isEmpty) {
+                          print('❌ ERREUR: job.id est null ou vide!');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Erreur: ID du job invalide')),
+                          );
+                          return;
+                        }
+                        print('🚀 Navigation vers /artisan/job/${job.id}');
                         context.go('/artisan/job/${job.id}');
                       },
                       icon: const Icon(Icons.visibility, size: 16),

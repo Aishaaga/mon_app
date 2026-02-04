@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../models/job.dart';
+import '../../providers/job_provider.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../models/job.dart';
 
 class JobDetailsScreen extends StatefulWidget {
   final String jobId;
@@ -23,10 +25,6 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    print('🔍 JobDetailsScreen initialisé avec jobId: ${widget.jobId}');
-    if (widget.jobId.isEmpty) {
-      print('❌ ERREUR: jobId est vide!');
-    }
     _loadJobDetails();
   }
 
@@ -38,29 +36,18 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     }
     
     try {
-      print('🔍 Chargement du job: ${widget.jobId}');
-      if (widget.jobId.isEmpty) {
-        print('❌ ERREUR: jobId vide, impossible de charger');
-        return;
-      }
-      
+      // Charger le job spécifique depuis Firestore
       final firestore = FirebaseFirestore.instance;
-      print('📡 Requête Firestore sur jobs/${widget.jobId}');
       final jobDoc = await firestore.collection('jobs').doc(widget.jobId).get();
       
-      print('📊 Document existe: ${jobDoc.exists}');
       if (jobDoc.exists) {
-        print('📄 Données brutes: ${jobDoc.data()}');
         _job = Job.fromMap(jobDoc.data()!, jobDoc.id);
         print('✅ Job chargé: ${_job!.category} - ${_job!.status}');
-        print('💰 Prix: ${_job!.quotePrice ?? _job!.estimatedBudget}');
-        print('📅 Créé le: ${_job!.createdAt}');
       } else {
         print('❌ Job non trouvé: ${widget.jobId}');
       }
     } catch (e) {
       print('❌ Erreur chargement job: $e');
-      print('📍 Stack trace: ${StackTrace.current}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e')),
@@ -83,6 +70,13 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
         showBackButton: true,
         onBackPressed: () => context.go('/artisan/my-jobs'),
         backgroundColor: Colors.green,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () => _showEditDialog(),
+            tooltip: 'Modifier',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(
@@ -142,20 +136,31 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Carte statut et actions principales
                         _buildStatusCard(_job!),
                         const SizedBox(height: 16),
+
+                        // Carte informations de base
                         _buildBasicInfoCard(_job!),
                         const SizedBox(height: 16),
+
+                        // Carte description
                         _buildDescriptionCard(_job!),
                         const SizedBox(height: 16),
+
+                        // Carte localisation
                         _buildLocationCard(_job!),
                         const SizedBox(height: 16),
+
+                        // Carte actions
                         _buildActionsCard(_job!),
                         const SizedBox(height: 32),
                       ],
                     ),
                   ),
-                ),
+                );
+              },
+            ),
     );
   }
 
@@ -347,7 +352,71 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     );
   }
 
-  Widget _buildLocationCard(Job job) {
+  Widget _buildClientCard(Request job) {
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Informations client',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.green.withOpacity(0.1),
+                  child: const Icon(Icons.person, color: Colors.green),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Client ID: ${job.clientId}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        job.status == 'accepted' || job.status == 'in_progress'
+                            ? 'Coordonnées disponibles'
+                            : 'Coordonnées disponibles après acceptation',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (job.status == 'accepted' || job.status == 'in_progress')
+                  IconButton(
+                    icon: const Icon(Icons.message),
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Messagerie bientôt disponible')),
+                      );
+                    },
+                    tooltip: 'Contacter le client',
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationCard(Request job) {
     return Card(
       elevation: 4,
       child: Padding(
@@ -364,7 +433,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.location_on, color: Colors.red),
+                Icon(Icons.location_on, size: 20, color: Colors.grey[600]),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -374,13 +443,174 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            Container(
+              height: 150,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.grey[200],
+              ),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.map, size: 48, color: Colors.grey),
+                    Text(
+                      'Carte non disponible',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildActionsCard(Job job) {
+  Widget _buildPhotosCard(Request job) {
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Photos (${job.photos!.length})',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 200,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: job.photos!.length,
+                itemBuilder: (context, index) {
+                  final photoUrl = job.photos![index];
+                  return Container(
+                    width: 150,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        photoUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: Icon(Icons.broken_image, color: Colors.grey),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuoteCard(Request job) {
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Votre devis',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Devis accepté par le client',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Votre proposition a été acceptée. Vous pouvez maintenant commencer l\'intervention.',
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressCard(Request job) {
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Progression',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            LinearProgressIndicator(
+              value: 0.5, // Simulation de progression
+              backgroundColor: Colors.grey[300],
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Intervention en cours... 50%',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionsCard(Request job) {
     return Card(
       elevation: 4,
       child: Padding(
@@ -394,25 +624,28 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             
             if (job.status == 'accepted') ...[
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _isUpdating ? null : () => _startJob(job),
-                  icon: _isUpdating 
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.play_arrow),
-                  label: Text(_isUpdating ? 'Démarrage...' : 'Commencer l\'intervention'),
+                  icon: _isUpdating
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Icon(Icons.play_arrow),
+                  label: Text(_isUpdating ? 'Mise à jour...' : 'Commencer l\'intervention'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
               ),
@@ -421,38 +654,39 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _isUpdating ? null : () => _completeJob(job),
-                  icon: _isUpdating 
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.check),
-                  label: Text(_isUpdating ? 'Finalisation...' : 'Terminer l\'intervention'),
+                  icon: _isUpdating
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Icon(Icons.check),
+                  label: Text(_isUpdating ? 'Mise à jour...' : 'Terminer l\'intervention'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
               ),
             ] else if (job.status == 'completed') ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.green.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.check_circle, color: Colors.green),
                     const SizedBox(width: 8),
-                    Text(
-                      'Intervention terminée',
+                    const Text(
+                      'Intervention terminée avec succès',
                       style: TextStyle(
-                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.green,
                       ),
@@ -461,25 +695,48 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                 ),
               ),
             ],
+            
+            const SizedBox(height: 8),
+            
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Messagerie bientôt disponible')),
+                      );
+                    },
+                    icon: const Icon(Icons.message),
+                    label: const Text('Contacter'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showEditDialog(),
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Modifier'),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Future<void> _startJob(Job job) async {
-    if (mounted) {
-      setState(() {
-        _isUpdating = true;
-      });
-    }
+  void _startJob(Request job) async {
+    setState(() {
+      _isUpdating = true;
+    });
 
     try {
-      final firestore = FirebaseFirestore.instance;
-      await firestore.collection('jobs').doc(job.id!).update({
+      final requestProvider = Provider.of<RequestProvider>(context, listen: false);
+      await requestProvider.updateRequest(job.id!, {
         'status': 'in_progress',
         'startedAt': Timestamp.now(),
-        'updatedAt': Timestamp.now(),
       });
 
       if (mounted) {
@@ -489,7 +746,6 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        await _loadJobDetails();
       }
     } catch (e) {
       if (mounted) {
@@ -506,19 +762,16 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     }
   }
 
-  Future<void> _completeJob(Job job) async {
-    if (mounted) {
-      setState(() {
-        _isUpdating = true;
-      });
-    }
+  void _completeJob(Request job) async {
+    setState(() {
+      _isUpdating = true;
+    });
 
     try {
-      final firestore = FirebaseFirestore.instance;
-      await firestore.collection('jobs').doc(job.id!).update({
+      final requestProvider = Provider.of<RequestProvider>(context, listen: false);
+      await requestProvider.updateRequest(job.id!, {
         'status': 'completed',
         'completedAt': Timestamp.now(),
-        'updatedAt': Timestamp.now(),
       });
 
       if (mounted) {
@@ -528,7 +781,6 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        await _loadJobDetails();
       }
     } catch (e) {
       if (mounted) {
@@ -543,6 +795,22 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
         });
       }
     }
+  }
+
+  void _showEditDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Modifier l\'intervention'),
+        content: const Text('Fonctionnalité de modification bientôt disponible.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatDate(Timestamp timestamp) {
