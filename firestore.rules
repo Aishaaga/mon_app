@@ -99,6 +99,11 @@ service cloud.firestore {
         request.auth != null && 
         request.auth.uid in resource.data.participants;
       
+      // Requête de liste: autoriser arrayContains pour les participants
+      allow list: if 
+        request.auth != null && 
+        request.auth.uid in request.query.arrayContains;
+      
       // Création: uniquement les participants
       allow create: if 
         request.auth != null && 

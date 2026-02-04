@@ -39,18 +39,30 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _loadChatData() async {
     try {
+      print('🔍 Chargement données chat pour: ${widget.userId}');
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final currentUserId = authProvider.currentUser?.uid;
       
-      if (currentUserId == null) return;
+      print('👤 User ID: $currentUserId');
+      
+      if (currentUserId == null) {
+        print('❌ User ID null');
+        return;
+      }
 
       final firestore = FirebaseFirestore.instance;
+      print('📡 Firestore initialisé');
 
       // Charger les informations de l'autre utilisateur
+      print('📄 Chargement utilisateur: ${widget.userId}');
       final userDoc = await firestore.collection('users').doc(widget.userId).get();
+      
+      print('📄 Document existe: ${userDoc.exists}');
       
       if (userDoc.exists) {
         final userData = userDoc.data();
+        print('📊 Données utilisateur: $userData');
+        
         if (userData != null) {
           String firstName = userData['firstName']?.toString() ?? '';
           String lastName = userData['lastName']?.toString() ?? '';
@@ -59,6 +71,8 @@ class _ChatScreenState extends State<ChatScreen> {
           if (fullName.isEmpty) {
             fullName = userData['email'] ?? 'Utilisateur inconnu';
           }
+
+          print('👤 Nom complet: "$fullName"');
 
           setState(() {
             _otherUser = {
@@ -69,15 +83,20 @@ class _ChatScreenState extends State<ChatScreen> {
               'isOnline': userData['isOnline'] ?? false,
             };
           });
+          print('✅ Utilisateur chargé: ${_otherUser!['name']}');
         }
       }
 
       // Chercher ou créer une conversation
+      print('🔍 Recherche conversation...');
       await _findOrCreateConversation(currentUserId);
 
       // Charger les messages
+      print('💬 Chargement messages...');
       _loadMessages();
     } catch (e) {
+      print('❌ Erreur chargement chat: $e');
+      print('📍 Type d\'erreur: ${e.runtimeType}');
       setState(() {
         _isLoading = false;
       });
@@ -90,74 +109,124 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _findOrCreateConversation(String currentUserId) async {
-    final firestore = FirebaseFirestore.instance;
-    
-    // Chercher une conversation existante
-    final conversationsSnapshot = await firestore
-        .collection('conversations')
-        .where('participants', arrayContains: currentUserId)
-        .get();
-
-    String? existingConversationId;
-    
-    for (var doc in conversationsSnapshot.docs) {
-      final participants = List<String>.from(doc.data()['participants'] ?? []);
-      if (participants.contains(widget.userId)) {
-        existingConversationId = doc.id;
-        break;
+    try {
+      print('🔍 Recherche conversation entre: $currentUserId et ${widget.userId}');
+      
+      final firestore = FirebaseFirestore.instance;
+      
+      // Chercher une conversation existante
+      print('📄 Recherche conversation existante...');
+      final conversationQuery = await firestore
+          .collection('conversations')
+          .where('participants', arrayContains: currentUserId)
+          .get();
+      
+      print('📊 Conversations trouvées: ${conversationQuery.docs.length}');
+      
+      String? existingConversationId;
+      
+      for (var doc in conversationQuery.docs) {
+        final participants = List<String>.from(doc.data()['participants'] ?? []);
+        if (participants.contains(widget.userId)) {
+          print('✅ Conversation existante trouvée: ${doc.id}');
+          existingConversationId = doc.id;
+          break;
+        }
       }
-    }
 
-    if (existingConversationId != null) {
-      setState(() {
-        _conversationId = existingConversationId;
-      });
-    } else {
-      // Créer une nouvelle conversation
-      final conversationDoc = await firestore.collection('conversations').add({
-        'participants': [currentUserId, widget.userId],
-        'lastMessage': '',
-        'lastMessageTime': Timestamp.now(),
-        'createdAt': Timestamp.now(),
-      });
+      if (existingConversationId != null) {
+        setState(() {
+          _conversationId = existingConversationId;
+        });
+        print('✅ Conversation ID: $_conversationId');
+      } else {
+        print('🆕 Création nouvelle conversation...');
+        // Créer une nouvelle conversation
+        final conversationDoc = await firestore.collection('conversations').add({
+          'participants': [currentUserId, widget.userId],
+          'lastMessage': '',
+          'lastMessageTime': Timestamp.now(),
+          'createdAt': Timestamp.now(),
+        });
 
-      setState(() {
-        _conversationId = conversationDoc.id;
-      });
+        setState(() {
+          _conversationId = conversationDoc.id;
+        });
+        print('✅ Nouvelle conversation créée: $_conversationId');
+      }
+    } catch (e) {
+      print('❌ Erreur recherche/création conversation: $e');
+      print('📍 Type erreur: ${e.runtimeType}');
+      rethrow; // Propager l'erreur pour voir où elle se produit
     }
   }
 
   void _loadMessages() {
     if (_conversationId == null) return;
 
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.currentUser?.uid;
+    
+    if (currentUserId == null) return;
+
+    print('📨 Chargement messages pour conversation: $_conversationId');
+    print('👤 Current user: $currentUserId');
+    print('👤 Other user: ${widget.userId}');
+
+    // Charger les messages envoyés par l'utilisateur courant
     FirebaseFirestore.instance
         .collection('messages')
-        .where('conversationId', isEqualTo: _conversationId)
+        .where('senderId', isEqualTo: currentUserId)
+        .where('receiverId', isEqualTo: widget.userId)
         .orderBy('timestamp', descending: true)
         .snapshots()
-        .listen((snapshot) {
-      List<Message> messages = snapshot.docs
-          .map((doc) => Message.fromFirestore(doc))
-          .toList();
+        .listen((sentSnapshot) {
+      print('📨 Messages envoyés: ${sentSnapshot.docs.length}');
+      
+      // Charger les messages reçus par l'utilisateur courant
+      FirebaseFirestore.instance
+          .collection('messages')
+          .where('senderId', isEqualTo: widget.userId)
+          .where('receiverId', isEqualTo: currentUserId)
+          .orderBy('timestamp', descending: true)
+          .snapshots()
+          .listen((receivedSnapshot) {
+        print('📨 Messages reçus: ${receivedSnapshot.docs.length}');
+        
+        // Combiner les deux listes
+        List<Message> allMessages = [
+          ...sentSnapshot.docs.map((doc) => Message.fromFirestore(doc)),
+          ...receivedSnapshot.docs.map((doc) => Message.fromFirestore(doc)),
+        ];
+        
+        // Trier par timestamp
+        allMessages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-      setState(() {
-        _messages = messages.reversed.toList();
-        _isLoading = false;
-      });
-
-      // Marquer les messages comme lus
-      _markMessagesAsRead();
-
-      // Scroller vers le bas
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
+        if (mounted) {
+          setState(() {
+            _messages = allMessages.reversed.toList();
+            _isLoading = false;
+          });
         }
+
+        // Marquer les messages comme lus
+        _markMessagesAsRead();
+
+        // Scroller vers le bas
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
+      }, onError: (error) {
+        print('❌ Erreur stream messages reçus: $error');
       });
+    }, onError: (error) {
+      print('❌ Erreur stream messages envoyés: $error');
     });
   }
 

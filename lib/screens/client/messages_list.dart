@@ -24,24 +24,18 @@ class _ClientMessagesListScreenState extends State<ClientMessagesListScreen> {
 
   Future<void> _loadConversations() async {
     try {
-      print('🔍 Chargement conversations...');
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final currentUserId = authProvider.currentUser?.uid;
-      
-      print('👤 User ID: $currentUserId');
       
       if (currentUserId == null) return;
 
       final firestore = FirebaseFirestore.instance;
       
-      print('📡 Requête conversations...');
       // Charger les conversations où l'utilisateur est participant (sans orderBy pour éviter l'erreur d'index)
       final conversationsSnapshot = await firestore
           .collection('conversations')
           .where('participants', arrayContains: currentUserId)
           .get();
-
-      print('📊 Conversations trouvées: ${conversationsSnapshot.docs.length}');
       
       // Trier localement par lastMessageTime
       conversationsSnapshot.docs.sort((a, b) {
@@ -104,18 +98,22 @@ class _ClientMessagesListScreenState extends State<ClientMessagesListScreen> {
         }
       }
 
-      setState(() {
-        _conversations = conversations;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        setState(() {
+          _conversations = conversations;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e')),
+          );
+        }
       }
     }
   }

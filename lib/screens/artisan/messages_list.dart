@@ -98,18 +98,22 @@ class _ArtisanMessagesListScreenState extends State<ArtisanMessagesListScreen> {
         }
       }
 
-      setState(() {
-        _conversations = conversations;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        setState(() {
+          _conversations = conversations;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e')),
+          );
+        }
       }
     }
   }
