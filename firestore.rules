@@ -46,5 +46,40 @@ service cloud.firestore {
         request.auth != null && 
         resource.data.clientId == request.auth.uid;
     }
+    
+    // Règles pour la collection jobs
+    match /jobs/{jobId} {
+      // Lecture:
+      // - L'artisan propriétaire peut lire ses jobs
+      // - Le client peut lire les jobs qui lui sont associés
+      allow read: if 
+        request.auth != null && (
+          // L'artisan peut lire ses jobs
+          resource.data.artisanId == request.auth.uid ||
+          // Le client peut lire les jobs qui le concernent
+          resource.data.clientId == request.auth.uid
+        );
+      
+      // Création:
+      // - Seuls les artisans authentifiés peuvent créer des jobs
+      // - L'artisanId doit correspondre à l'UID de l'utilisateur connecté
+      allow create: if 
+        request.auth != null && 
+        request.auth.uid == request.resource.data.artisanId &&
+        request.resource.data.status == 'accepted';
+      
+      // Mise à jour:
+      // - L'artisan peut changer le statut de ses jobs
+      allow update: if 
+        request.auth != null && 
+        resource.data.artisanId == request.auth.uid &&
+        request.resource.data.status in ['accepted', 'in_progress', 'completed', 'cancelled'];
+      
+      // Suppression:
+      // - Seul l'artisan propriétaire peut supprimer ses jobs
+      allow delete: if 
+        request.auth != null && 
+        resource.data.artisanId == request.auth.uid;
+    }
   }
 }
