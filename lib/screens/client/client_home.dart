@@ -97,18 +97,29 @@ class _ClientHomeState extends State<ClientHome> {
 
                   // Créer un AppUser temporaire depuis les données
                   final userData = authProvider.userData!;
+                  final firstName = userData['firstName']?.toString() ?? '';
+                  final lastName = userData['lastName']?.toString() ?? '';
+                  final fullName = '$firstName $lastName'.trim();
+                  
+                  print('DEBUG: userData = $userData');
+                  print('DEBUG: firstName = "$firstName"');
+                  print('DEBUG: lastName = "$lastName"');
+                  print('DEBUG: fullName = "$fullName"');
+                  
                   final user = AppUser(
                     id: FirebaseAuth.instance.currentUser?.uid ?? '',
-                    firstName: userData['fullName']?.split(' ').first ?? '',
-                    lastName: userData['fullName']?.split(' ').last ?? '',
+                    firstName: firstName,
+                    lastName: lastName,
                     email: userData['email'] ?? '',
                     phone: userData['phone'] ?? '',
                     address: userData['address'] ?? '',
                     userType: userData['userType'] ?? 'client',
                     createdAt: userData['createdAt']?.toDate() ?? DateTime.now(),
                     updatedAt: userData['updatedAt']?.toDate(),
-                    profileImageUrl: userData['profileImageUrl'],
+                    profileImageUrl: userData['profileImage'],
                   );
+                  
+                  print('DEBUG: user.fullName = "${user.fullName}"');
 
                   return UserInfoCard(user: user);
                 },
@@ -229,65 +240,7 @@ class _ClientHomeState extends State<ClientHome> {
               const SizedBox(height: 24),
 
               // Section d'aide
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.help_outline,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Besoin d\'aide ?',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Notre équipe support est disponible pour vous aider avec toutes vos questions.',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Support bientôt disponible')),
-                                );
-                              },
-                              icon: const Icon(Icons.support_agent),
-                              label: const Text('Contacter le support'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('FAQ bientôt disponible')),
-                                );
-                              },
-                              icon: const Icon(Icons.question_answer),
-                              label: const Text('FAQ'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+
 
               const SizedBox(height: 32),
             ],

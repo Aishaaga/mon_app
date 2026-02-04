@@ -143,17 +143,21 @@ class _ArtisanHomeState extends State<ArtisanHome> {
 
                   // Créer un AppUser temporaire depuis les données
                   final userData = authProvider.userData!;
+                  final firstName = userData['firstName']?.toString() ?? '';
+                  final lastName = userData['lastName']?.toString() ?? '';
+                  final fullName = '$firstName $lastName'.trim();
+                  
                   final user = AppUser(
                     id: FirebaseAuth.instance.currentUser?.uid ?? '',
-                    firstName: userData['fullName']?.split(' ').first ?? '',
-                    lastName: userData['fullName']?.split(' ').last ?? '',
+                    firstName: firstName,
+                    lastName: lastName,
                     email: userData['email'] ?? '',
                     phone: userData['phone'] ?? '',
                     address: userData['address'] ?? '',
                     userType: userData['userType'] ?? 'artisan',
                     createdAt: userData['createdAt']?.toDate() ?? DateTime.now(),
                     updatedAt: userData['updatedAt']?.toDate(),
-                    profileImageUrl: userData['profileImageUrl'],
+                    profileImageUrl: userData['profileImage'],
                   );
 
                   return UserInfoCard(user: user);
