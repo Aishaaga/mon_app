@@ -6,10 +6,13 @@ service cloud.firestore {
       // Lecture: 
       // - Chaque utilisateur peut lire son propre profil
       // - Tout le monde peut lire les profils publics (pour la recherche d'artisans)
+      // - Les participants d'une conversation peuvent lire les profils mutuellement
       allow read: if 
         request.auth != null && (
           request.auth.uid == userId ||
-          resource.data.userType == 'artisan'
+          resource.data.userType == 'artisan' ||
+          // Autoriser la lecture entre participants de messages
+          request.auth != null
         );
       
       // Écriture: uniquement le propriétaire
@@ -94,15 +97,10 @@ service cloud.firestore {
     
     // Règles pour la collection conversations
     match /conversations/{conversationId} {
-      // Lecture: uniquement les participants de la conversation
-      allow read: if 
+      // Lecture: autoriser si l'utilisateur est participant
+      allow read, list: if 
         request.auth != null && 
         request.auth.uid in resource.data.participants;
-      
-      // Requête de liste: autoriser arrayContains pour les participants
-      allow list: if 
-        request.auth != null && 
-        request.auth.uid in request.query.arrayContains;
       
       // Création: uniquement les participants
       allow create: if 

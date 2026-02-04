@@ -31,36 +31,59 @@ class _ArtisanMessagesListScreenState extends State<ArtisanMessagesListScreen> {
 
       final firestore = FirebaseFirestore.instance;
       
-      // Charger les conversations où l'artisan est participant (sans orderBy pour éviter l'erreur d'index)
-      final conversationsSnapshot = await firestore
-          .collection('conversations')
-          .where('participants', arrayContains: currentUserId)
+      // Approche 1: Chercher les messages où l'utilisateur est impliqué
+      print('Chargement messages pour utilisateur: $currentUserId');
+      
+      // Messages envoyés par l'utilisateur
+      final sentMessagesSnapshot = await firestore
+          .collection('messages')
+          .where('senderId', isEqualTo: currentUserId)
           .get();
       
-      // Trier localement par lastMessageTime
-      conversationsSnapshot.docs.sort((a, b) {
-        final aTime = (a.data()['lastMessageTime'] as Timestamp?)?.toDate() ?? DateTime(0);
-        final bTime = (b.data()['lastMessageTime'] as Timestamp?)?.toDate() ?? DateTime(0);
-        return bTime.compareTo(aTime); // Plus récent d'abord
-      });
-
+      print('Messages envoyes: ${sentMessagesSnapshot.docs.length}');
+      
+      // Messages reçus par l'utilisateur
+      final receivedMessagesSnapshot = await firestore
+          .collection('messages')
+          .where('receiverId', isEqualTo: currentUserId)
+          .get();
+      
+      print('Messages recus: ${receivedMessagesSnapshot.docs.length}');
+      
+      // Combiner tous les messages
+      final allMessages = [
+        ...sentMessagesSnapshot.docs,
+        ...receivedMessagesSnapshot.docs,
+      ];
+      
+      print('Total messages: ${allMessages.length}');
+      
+      // Extraire les IDs uniques des autres participants
+      final Set<String> otherParticipantIds = {};
+      for (var doc in allMessages) {
+        final data = doc.data();
+        final senderId = data['senderId'] as String?;
+        final receiverId = data['receiverId'] as String?;
+        
+        if (senderId != null && senderId != currentUserId) {
+          otherParticipantIds.add(senderId);
+        }
+        if (receiverId != null && receiverId != currentUserId) {
+          otherParticipantIds.add(receiverId);
+        }
+      }
+      
+      print('Autres participants: ${otherParticipantIds.length}');
+      
       List<Conversation> conversations = [];
       
-      for (var doc in conversationsSnapshot.docs) {
-        final data = doc.data();
-        final participants = List<String>.from(data['participants'] ?? []);
-        
-        // Trouver l'autre participant (pas l'artisan actuel)
-        final otherParticipantId = participants.firstWhere(
-          (id) => id != currentUserId,
-          orElse: () => '',
-        );
-
-        if (otherParticipantId.isNotEmpty) {
-          // Charger les informations de l'autre participant
+      // Pour chaque participant, créer une conversation
+      for (String participantId in otherParticipantIds) {
+        try {
+          // Charger les infos du participant
           final userDoc = await firestore
               .collection('users')
-              .doc(otherParticipantId)
+              .doc(participantId)
               .get();
 
           if (userDoc.exists) {
@@ -71,32 +94,77 @@ class _ArtisanMessagesListScreenState extends State<ArtisanMessagesListScreen> {
               String fullName = '$firstName $lastName'.trim();
               
               if (fullName.isEmpty) {
-                fullName = userData['email'] ?? 'Client inconnu';
+                fullName = userData['email'] ?? 'Utilisateur inconnu';
               }
 
               // Compter les messages non lus
               final unreadSnapshot = await firestore
                   .collection('messages')
-                  .where('conversationId', isEqualTo: doc.id)
                   .where('receiverId', isEqualTo: currentUserId)
+                  .where('senderId', isEqualTo: participantId)
                   .where('isRead', isEqualTo: false)
                   .get();
 
+              // Récupérer le dernier message - approche alternative
+              String lastMessage = '';
+              DateTime lastMessageTime = DateTime.now();
+              
+              // Essayer avec senderId = currentUserId, receiverId = participantId
+              try {
+                final lastMessageSent = await firestore
+                    .collection('messages')
+                    .where('senderId', isEqualTo: currentUserId)
+                    .where('receiverId', isEqualTo: participantId)
+                    .orderBy('timestamp', descending: true)
+                    .limit(1)
+                    .get();
+                
+                if (lastMessageSent.docs.isNotEmpty) {
+                  final lastData = lastMessageSent.docs.first.data();
+                  lastMessage = lastData['content'] ?? '';
+                  lastMessageTime = (lastData['timestamp'] as Timestamp).toDate();
+                }
+              } catch (e) {
+                // Si ça échoue, essayer avec l'autre sens
+                try {
+                  final lastMessageReceived = await firestore
+                      .collection('messages')
+                      .where('senderId', isEqualTo: participantId)
+                      .where('receiverId', isEqualTo: currentUserId)
+                      .orderBy('timestamp', descending: true)
+                      .limit(1)
+                      .get();
+                  
+                  if (lastMessageReceived.docs.isNotEmpty) {
+                    final lastData = lastMessageReceived.docs.first.data();
+                    lastMessage = lastData['content'] ?? '';
+                    lastMessageTime = (lastData['timestamp'] as Timestamp).toDate();
+                  }
+                } catch (e2) {
+                  print('Erreur recuperation dernier message: $e2');
+                }
+              }
+
               conversations.add(Conversation(
-                id: doc.id,
-                participantId: otherParticipantId,
+                id: 'conversation_${currentUserId}_$participantId', // ID temporaire
+                participantId: participantId,
                 participantName: fullName,
                 participantEmail: userData['email'] ?? '',
                 participantAvatar: userData['profileImage'],
-                lastMessage: data['lastMessage'] ?? '',
-                lastMessageTime: (data['lastMessageTime'] as Timestamp).toDate(),
+                lastMessage: lastMessage,
+                lastMessageTime: lastMessageTime,
                 unreadCount: unreadSnapshot.docs.length,
                 isOnline: userData['isOnline'] ?? false,
               ));
             }
           }
+        } catch (e) {
+          print('Erreur chargement participant $participantId: $e');
         }
       }
+
+      // Trier par lastMessageTime
+      conversations.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
 
       if (mounted) {
         setState(() {
@@ -104,7 +172,10 @@ class _ArtisanMessagesListScreenState extends State<ArtisanMessagesListScreen> {
           _isLoading = false;
         });
       }
+      
+      print('Conversations chargees: ${conversations.length}');
     } catch (e) {
+      print('Erreur chargement conversations: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
