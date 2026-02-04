@@ -18,6 +18,7 @@ class ClientRequestDetailsScreen extends StatefulWidget {
 class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen> {
   Request? _request;
   bool _isLoading = true;
+  List<Map<String, dynamic>> _quotes = [];
 
   @override
   void initState() {
@@ -37,6 +38,9 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
         _request = request;
         _isLoading = false;
       });
+      
+      // Charger les devis après avoir chargé la demande
+      await _loadQuotes();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -47,6 +51,15 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
         );
       }
     }
+  }
+
+  Future<void> _loadQuotes() async {
+    if (_request == null) return;
+    
+    final quotes = await _loadRealQuotes();
+    setState(() {
+      _quotes = quotes;
+    });
   }
 
   Color _getStatusColor(String status) {
@@ -72,27 +85,64 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
   }
 
   List<Map<String, dynamic>> _getMockQuotes() {
-    // Simuler des devis reçus
-    return [
-      {
-        'artisanId': 'artisan1',
-        'artisanName': 'Mohamed Benali',
-        'artisanRating': 4.8,
-        'artisanReviews': 23,
-        'price': 850.0,
-        'description': 'Je peux intervenir rapidement avec matériel professionnel',
-        'avatar': 'https://via.placeholder.com/50',
-      },
-      {
-        'artisanId': 'artisan2',
-        'artisanName': 'Karim Tazi',
-        'artisanRating': 4.5,
-        'artisanReviews': 15,
-        'price': 750.0,
-        'description': 'Expérience 10 ans, disponible demain',
-        'avatar': 'https://via.placeholder.com/50',
-      },
-    ];
+    // Cette fonction ne sera plus utilisée - on va charger les vrais devis
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> _loadRealQuotes() async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      
+      // Charger tous les jobs liés à cette demande
+      final jobsSnapshot = await firestore
+          .collection('jobs')
+          .where('requestId', isEqualTo: _request!.id)
+          .get();
+      
+      List<Map<String, dynamic>> quotes = [];
+      
+      for (var jobDoc in jobsSnapshot.docs) {
+        final jobData = jobDoc.data();
+        
+        // Charger les informations de l'artisan
+        final artisanDoc = await firestore
+            .collection('users')
+            .doc(jobData['artisanId'])
+            .get();
+        
+        if (artisanDoc.exists) {
+          final artisanData = artisanDoc.data();
+          
+          if (artisanData != null) {
+            quotes.add({
+              'artisanId': jobData['artisanId'],
+              'artisanName': artisanData['fullName'] ?? 'Artisan inconnu',
+              'artisanEmail': artisanData['email'] ?? '',
+              'artisanPhone': artisanData['phone'] ?? '',
+              'artisanAddress': artisanData['address'] ?? '',
+              'artisanRating': 4.5, // TODO: Charger depuis une collection reviews
+              'artisanReviews': 0, // TODO: Charger depuis une collection reviews
+              'price': jobData['quotePrice'] ?? jobData['estimatedBudget'] ?? 0.0,
+              'description': jobData['quoteDescription'] ?? '',
+              'duration': jobData['quoteDuration'] ?? 0,
+              'materials': jobData['quoteMaterials'] ?? [],
+              'notes': jobData['quoteNotes'] ?? '',
+              'avatar': artisanData['profileImageUrl'],
+              'jobId': jobDoc.id,
+              'createdAt': jobData['createdAt'],
+            });
+          }
+        }
+      }
+      
+      // Trier par date de création (plus récent d'abord)
+      quotes.sort((a, b) => (b['createdAt'] as Timestamp).compareTo(a['createdAt'] as Timestamp));
+      
+      return quotes;
+    } catch (e) {
+      print('❌ Erreur chargement devis: $e');
+      return [];
+    }
   }
 
   @override
@@ -321,8 +371,6 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
   }
 
   Widget _buildQuotesSection() {
-    final quotes = _getMockQuotes();
-    
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -343,7 +391,7 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '${quotes.length} devis',
+                    '${_quotes.length} devis',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -354,7 +402,26 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
               ],
             ),
             const SizedBox(height: 12),
-            ...quotes.map((quote) => _buildQuoteCard(quote)).toList(),
+            if (_quotes.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Aucun devis reçu pour le moment',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ..._quotes.map((quote) => _buildQuoteCard(quote)).toList(),
           ],
         ),
       ),
@@ -374,8 +441,22 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
           Row(
             children: [
               CircleAvatar(
-                backgroundImage: NetworkImage(quote['avatar']),
+                backgroundImage: quote['avatar'] != null 
+                    ? NetworkImage(quote['avatar'])
+                    : null,
                 radius: 25,
+                backgroundColor: Colors.green[100],
+                child: quote['avatar'] == null
+                    ? Text(
+                        quote['artisanName'].isNotEmpty 
+                            ? quote['artisanName'][0].toUpperCase()
+                            : 'A',
+                        style: TextStyle(
+                          color: Colors.green[800],
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -386,6 +467,14 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
                       quote['artisanName'],
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
+                    if (quote['artisanEmail'].isNotEmpty)
+                      Text(
+                        quote['artisanEmail'],
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
                     Row(
                       children: [
                         Icon(Icons.star, size: 16, color: Colors.amber),
@@ -396,18 +485,43 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
                   ],
                 ),
               ),
-              Text(
-                '${quote['price'].toStringAsFixed(2)} DH',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${quote['price'].toStringAsFixed(2)} DH',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                  if (quote['duration'] > 0)
+                    Text(
+                      '${quote['duration']} jours',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(quote['description']),
+          if (quote['description'].isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(quote['description']),
+          ],
+          if (quote['materials'] != null && (quote['materials'] as List).isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Matériels: ${(quote['materials'] as List).join(', ')}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
