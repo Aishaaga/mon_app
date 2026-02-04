@@ -23,10 +23,6 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    print('🔍 JobDetailsScreen initialisé avec jobId: ${widget.jobId}');
-    if (widget.jobId.isEmpty) {
-      print('❌ ERREUR: jobId est vide!');
-    }
     _loadJobDetails();
   }
 
@@ -38,29 +34,17 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     }
     
     try {
-      print('🔍 Chargement du job: ${widget.jobId}');
       if (widget.jobId.isEmpty) {
-        print('❌ ERREUR: jobId vide, impossible de charger');
         return;
       }
       
       final firestore = FirebaseFirestore.instance;
-      print('📡 Requête Firestore sur jobs/${widget.jobId}');
       final jobDoc = await firestore.collection('jobs').doc(widget.jobId).get();
       
-      print('📊 Document existe: ${jobDoc.exists}');
       if (jobDoc.exists) {
-        print('📄 Données brutes: ${jobDoc.data()}');
         _job = Job.fromMap(jobDoc.data()!, jobDoc.id);
-        print('✅ Job chargé: ${_job!.category} - ${_job!.status}');
-        print('💰 Prix: ${_job!.quotePrice ?? _job!.estimatedBudget}');
-        print('📅 Créé le: ${_job!.createdAt}');
-      } else {
-        print('❌ Job non trouvé: ${widget.jobId}');
       }
     } catch (e) {
-      print('❌ Erreur chargement job: $e');
-      print('📍 Stack trace: ${StackTrace.current}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e')),

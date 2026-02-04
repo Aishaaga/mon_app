@@ -37,16 +37,18 @@ class JobProvider with ChangeNotifier {
         return;
       }
 
-      // Charger tous les jobs de l'artisan
+      // Charger tous les jobs de l'artisan (sans orderBy pour éviter l'index)
       final snapshot = await _firestore
           .collection('jobs')
           .where('artisanId', isEqualTo: currentUser.uid)
-          .orderBy('createdAt', descending: true)
           .get();
       
       _jobs = snapshot.docs
           .map((doc) => Job.fromMap(doc.data(), doc.id))
           .toList();
+
+      // Trier localement par date de création (plus récent d'abord)
+      _jobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       _isLoading = false;
       notifyListeners();

@@ -20,6 +20,36 @@ class ArtisanHome extends StatefulWidget {
 
 class _ArtisanHomeState extends State<ArtisanHome> {
   @override
+  void initState() {
+    super.initState();
+    // Charger les données après le build initial
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadInitialData();
+      }
+    });
+  }
+
+  Future<void> _loadInitialData() async {
+    try {
+      final jobProvider = Provider.of<JobProvider>(context, listen: false);
+      final requestProvider = Provider.of<RequestProvider>(context, listen: false);
+      
+      await Future.wait([
+        jobProvider.loadMyJobs(),
+        requestProvider.loadRequests(),
+      ]);
+      
+      // Forcer la mise à jour de l'interface
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      // Erreur silencieuse
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
@@ -71,12 +101,22 @@ class _ArtisanHomeState extends State<ArtisanHome> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          final jobProvider = Provider.of<JobProvider>(context, listen: false);
-          final requestProvider = Provider.of<RequestProvider>(context, listen: false);
-          await Future.wait([
-            jobProvider.loadMyJobs(),
-            requestProvider.loadRequests(),
-          ]);
+          try {
+            final jobProvider = Provider.of<JobProvider>(context, listen: false);
+            final requestProvider = Provider.of<RequestProvider>(context, listen: false);
+            
+            await Future.wait([
+              jobProvider.loadMyJobs(),
+              requestProvider.loadRequests(),
+            ]);
+            
+            // Forcer la mise à jour de l'interface
+            if (mounted) {
+              setState(() {});
+            }
+          } catch (e) {
+            // Erreur silencieuse
+          }
         },
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -125,14 +165,6 @@ class _ArtisanHomeState extends State<ArtisanHome> {
               // Statistiques
               Consumer2<RequestProvider, JobProvider>(
                 builder: (context, requestProvider, jobProvider, child) {
-                  // Charger les données si nécessaire
-                  if (jobProvider.myJobs.isEmpty) {
-                    jobProvider.loadMyJobs();
-                  }
-                  if (requestProvider.availableRequests.isEmpty) {
-                    requestProvider.loadRequests();
-                  }
-                  
                   final availableRequests = requestProvider.availableRequests;
                   final myJobs = jobProvider.myJobs;
                   final activeJobs = myJobs.where((job) => 

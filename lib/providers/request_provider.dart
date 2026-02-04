@@ -88,10 +88,10 @@ class RequestProvider with ChangeNotifier {
         return;
       }
 
-      // Ne charger que les demandes du client connecté
+      // Charger toutes les demandes avec le statut "pending" (pour les artisans)
       final snapshot = await _firestore
           .collection('requests')
-          .where('clientId', isEqualTo: currentUser.uid)
+          .where('status', isEqualTo: 'pending')
           .get();
       
       _requests = snapshot.docs

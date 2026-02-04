@@ -51,13 +51,10 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
 
   Future<void> _loadMyJobs() async {
     try {
-      print('🔍 Chargement des jobs depuis Firestore...');
-      
       final firestore = FirebaseFirestore.instance;
       final auth = FirebaseAuth.instance;
       
       if (auth.currentUser == null) {
-        print('❌ Utilisateur non connecté');
         return;
       }
 
@@ -74,8 +71,6 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
 
       // Trier localement par date de création (plus récent d'abord)
       jobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-      print('✅ Jobs chargés: ${jobs.length}');
       
       // Mettre à jour le provider si disponible
       try {
@@ -84,9 +79,7 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
         for (final job in jobs) {
           jobProvider.addTestJob(job);
         }
-        print('✅ Jobs mis à jour dans le provider');
       } catch (e) {
-        print('⚠️ Provider non disponible, utilisation locale');
         // Stocker localement si le provider n'est pas disponible
         _localJobs = jobs;
       }
@@ -96,7 +89,7 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
         setState(() {});
       }
     } catch (e) {
-      print('❌ Erreur chargement jobs: $e');
+      // Erreur silencieuse
     }
   }
 
@@ -106,18 +99,13 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
     List<Job> jobs;
     try {
       final jobProvider = Provider.of<JobProvider>(context, listen: false);
-      print('✅ JobProvider accessible dans build');
       jobs = jobProvider.myJobs;
-      print('📊 Jobs depuis provider: ${jobs.length}');
     } catch (e) {
-      print('⚠️ JobProvider NON accessible, utilisation locale: ${_localJobs.length} jobs');
       jobs = _localJobs;
-      print('📊 Jobs depuis local: ${jobs.length}');
     }
 
     // Filtrer les jobs
     final myJobs = _filterJobs(jobs);
-    print('📊 Jobs après filtrage: ${myJobs.length}');
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -502,17 +490,12 @@ List<Job> _filterJobs(List<Job> jobs) {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        print('🔍 Clic sur "Voir détails" pour job: ${job.id}');
-                        print('📄 Job category: ${job.category}');
-                        print('📊 Job status: ${job.status}');
                         if (job.id == null || job.id!.isEmpty) {
-                          print('❌ ERREUR: job.id est null ou vide!');
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Erreur: ID du job invalide')),
                           );
                           return;
                         }
-                        print('🚀 Navigation vers /artisan/job/${job.id}');
                         context.go('/artisan/job/${job.id}');
                       },
                       icon: const Icon(Icons.visibility, size: 16),
