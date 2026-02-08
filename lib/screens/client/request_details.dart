@@ -1003,13 +1003,6 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _contactArtisan('message'),
-                        icon: const Icon(Icons.message),
-                        label: const Text('Contacter l\'artisan'),
-                      ),
-                    ),
                     const SizedBox(width: 12),
                     if (_request!.status == 'in_progress')
                       Expanded(
