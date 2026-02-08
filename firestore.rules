@@ -3,93 +3,41 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Règles pour la collection users
     match /users/{userId} {
-      // Lecture: 
-      // - Chaque utilisateur peut lire son propre profil
-      // - Tout le monde peut lire les profils publics (pour la recherche d'artisans)
-      // - Les participants d'une conversation peuvent lire les profils mutuellement
-      allow read: if 
-        request.auth != null && (
-          request.auth.uid == userId ||
-          resource.data.userType == 'artisan' ||
-          // Autoriser la lecture entre participants de messages
-          request.auth != null
-        );
-      
-      // Écriture: uniquement le propriétaire
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Règles pour la collection profiles
+    match /profiles/{userId} {
+      allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
     
     // Règles pour la collection requests
     match /requests/{requestId} {
-      // Lecture: 
-      // - Le propriétaire (clientId) peut lire
-      // - Les artisans peuvent lire les demandes pending
-      allow read: if 
-        request.auth != null && (
-          // Le client propriétaire peut lire sa demande
-          resource.data.clientId == request.auth.uid ||
-          // Les artisans peuvent lire les demandes en attente
-          (resource.data.status == 'pending')
-        );
-      
-      // Création: 
-      // - Seuls les utilisateurs authentifiés peuvent créer
-      // - Le clientId doit correspondre à l'UID de l'utilisateur connecté
+      allow read: if request.auth != null;
       allow create: if 
         request.auth != null && 
-        request.auth.uid == request.resource.data.clientId &&
-        request.resource.data.status == 'pending';
+        request.auth.uid == request.resource.data.clientId;
       
-      // Mise à jour:
-      // - Le client peut annuler sa demande
-      // - Les artisans peuvent changer le statut
-      allow update: if 
-        request.auth != null && (
-          // Le client peut annuler sa demande
-          (resource.data.clientId == request.auth.uid && 
-           request.resource.data.status == 'cancelled' &&
-           resource.data.status == 'pending') ||
-          // Les artisans peuvent changer le statut
-          (resource.data.status == 'pending' && 
-           request.resource.data.status in ['accepted', 'in_progress', 'completed'])
-        );
-      
-      // Suppression: uniquement le propriétaire
-      allow delete: if 
+      allow update, delete: if 
         request.auth != null && 
         resource.data.clientId == request.auth.uid;
     }
     
     // Règles pour la collection jobs
     match /jobs/{jobId} {
-      // Lecture:
-      // - L'artisan propriétaire peut lire ses jobs
-      // - Le client peut lire les jobs qui lui sont associés
-      allow read: if 
-        request.auth != null && (
-          // L'artisan peut lire ses jobs
-          resource.data.artisanId == request.auth.uid ||
-          // Le client peut lire les jobs qui le concernent
-          resource.data.clientId == request.auth.uid
-        );
-      
-      // Création:
-      // - Seuls les artisans authentifiés peuvent créer des jobs
-      // - L'artisanId doit correspondre à l'UID de l'utilisateur connecté
+      allow read: if request.auth != null;
       allow create: if 
         request.auth != null && 
         request.auth.uid == request.resource.data.artisanId &&
         request.resource.data.status == 'accepted';
       
-      // Mise à jour:
-      // - L'artisan peut changer le statut de ses jobs
       allow update: if 
         request.auth != null && 
         resource.data.artisanId == request.auth.uid &&
         request.resource.data.status in ['accepted', 'in_progress', 'completed', 'cancelled'];
       
-      // Suppression:
-      // - Seul l'artisan propriétaire peut supprimer ses jobs
       allow delete: if 
         request.auth != null && 
         resource.data.artisanId == request.auth.uid;
@@ -97,54 +45,63 @@ service cloud.firestore {
     
     // Règles pour la collection conversations
     match /conversations/{conversationId} {
-      // Lecture: autoriser si l'utilisateur est participant
       allow read, list: if 
         request.auth != null && 
         request.auth.uid in resource.data.participants;
       
-      // Création: uniquement les participants
       allow create: if 
         request.auth != null && 
         request.auth.uid in request.resource.data.participants &&
         request.resource.data.participants.size() == 2;
       
-      // Mise à jour: uniquement les participants
       allow update: if 
         request.auth != null && 
         request.auth.uid in resource.data.participants;
       
-      // Suppression: uniquement les participants
       allow delete: if 
         request.auth != null && 
         request.auth.uid in resource.data.participants;
     }
     
     // Règles pour la collection messages
-    match /messages/{messageId} {
-      // Lecture: uniquement l'expéditeur ou le destinataire
+    match /conversations/{conversationId}/messages/{messageId} {
       allow read: if 
-        request.auth != null && (
-          resource.data.senderId == request.auth.uid ||
-          resource.data.receiverId == request.auth.uid
-        );
+        request.auth != null && 
+        request.auth.uid in resource.data.participants;
       
-      // Création: uniquement l'expéditeur
       allow create: if 
         request.auth != null && 
         request.auth.uid == request.resource.data.senderId &&
-        request.auth.uid != request.resource.data.receiverId;
+        request.auth.uid in request.resource.data.participants;
       
-      // Mise à jour: uniquement pour marquer comme lu (destinataire)
       allow update: if 
         request.auth != null && 
-        request.auth.uid == resource.data.receiverId &&
-        request.resource.data.keys().hasAll(['isRead']) &&
-        request.resource.data.isRead == true;
+        request.auth.uid == request.data.senderId;
+    }
+    
+    // Règles pour la collection payments
+    match /payments/{paymentId} {
+      allow read: if 
+        request.auth != null && (
+          resource.data.clientId == request.auth.uid ||
+          resource.data.artisanId == request.auth.uid
+        );
       
-      // Suppression: uniquement l'expéditeur
+      allow create: if 
+        request.auth != null && (
+          request.auth.uid == resource.data.clientId ||
+          request.auth.uid == resource.data.artisanId
+        );
+      
+      allow update: if 
+        request.auth != null && (
+          (request.auth.uid == resource.data.clientId && resource.data.status == 'pending') ||
+          (request.auth.uid == resource.data.artisanId && resource.data.status in ['pending', 'processing'])
+        );
+      
       allow delete: if 
         request.auth != null && 
-        resource.data.senderId == request.auth.uid;
+        request.auth.uid in [resource.data.clientId, resource.data.artisanId];
     }
   }
 }

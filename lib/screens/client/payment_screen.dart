@@ -5,38 +5,38 @@ import '../../models/payment.dart';
 import '../../services/payment_service.dart';
 import '../shared/payment_screen.dart';
 
-class ArtisanPaymentScreen extends StatefulWidget {
+class ClientPaymentScreen extends StatefulWidget {
   final String? jobId;
-  final String? clientId;
+  final String? artisanId;
   final String? jobTitle;
   final double? amount;
 
-  const ArtisanPaymentScreen({
+  const ClientPaymentScreen({
     super.key,
     this.jobId,
-    this.clientId,
+    this.artisanId,
     this.jobTitle,
     this.amount,
   });
 
   @override
-  State<ArtisanPaymentScreen> createState() => _ArtisanPaymentScreenState();
+  State<ClientPaymentScreen> createState() => _ClientPaymentScreenState();
 }
 
-class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen> 
+class _ClientPaymentScreenState extends State<ClientPaymentScreen> 
     with SingleTickerProviderStateMixin {
   final PaymentService _paymentService = PaymentService();
   late TabController _tabController;
   bool _isLoading = false;
   List<Payment> _recentPayments = [];
-  double _totalEarnings = 0.0;
-  String? _artisanId;
+  double _totalSpent = 0.0;
+  String? _clientId;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _artisanId = FirebaseAuth.instance.currentUser?.uid;
+    _clientId = FirebaseAuth.instance.currentUser?.uid;
     _loadPaymentData();
     
     // Récupérer les paramètres de l'URL si disponibles
@@ -48,11 +48,11 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
   void _extractUrlParameters() {
     final uri = Uri.base;
     final jobId = uri.queryParameters['jobId'] ?? widget.jobId;
-    final clientId = uri.queryParameters['clientId'] ?? widget.clientId;
+    final artisanId = uri.queryParameters['artisanId'] ?? widget.artisanId;
     final jobTitle = uri.queryParameters['jobTitle'] ?? widget.jobTitle;
     final amount = double.tryParse(uri.queryParameters['amount'] ?? '') ?? widget.amount;
     
-    if (jobId != null && clientId != null && amount != null) {
+    if (jobId != null && artisanId != null && amount != null) {
       setState(() {
         // Mettre à jour les paramètres si nécessaire
       });
@@ -69,12 +69,12 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestion des paiements'),
+        title: const Text('Mes paiements'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => widget.jobId != null 
-              ? context.go('/artisan/job/${widget.jobId}')
-              : context.go('/artisan/home'),
+              ? context.go('/client/job/${widget.jobId}')
+              : context.go('/client/home'),
         ),
         bottom: TabBar(
           controller: _tabController,
@@ -95,7 +95,7 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
   }
 
   Widget _buildNewPaymentTab() {
-    if (widget.jobId == null || widget.clientId == null || widget.amount == null) {
+    if (widget.jobId == null || widget.artisanId == null || widget.amount == null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -115,7 +115,7 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Accédez à une mission terminée pour demander le paiement',
+              'Accédez à une demande acceptée pour effectuer le paiement',
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[500],
@@ -123,9 +123,9 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => context.go('/artisan/my-jobs'),
-              icon: const Icon(Icons.work),
-              label: const Text('Voir mes missions'),
+              onPressed: () => context.go('/client/my-requests'),
+              icon: const Icon(Icons.list),
+              label: const Text('Voir mes demandes'),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -153,10 +153,10 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
 
     return SharedPaymentScreen(
       jobId: widget.jobId!,
-      clientId: widget.clientId!,
-      artisanId: _artisanId!,
+      clientId: _clientId!,
+      artisanId: widget.artisanId!,
       amount: widget.amount!,
-      userType: 'artisan',
+      userType: 'client',
       jobTitle: widget.jobTitle,
     );
   }
@@ -166,14 +166,14 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
       onRefresh: _loadPaymentData,
       child: Column(
         children: [
-          _buildEarningsSummary(),
+          _buildSpendingSummary(),
           Expanded(child: _buildPaymentsList()),
         ],
       ),
     );
   }
 
-  Widget _buildEarningsSummary() {
+  Widget _buildSpendingSummary() {
     return Card(
       margin: const EdgeInsets.all(16),
       child: Padding(
@@ -181,16 +181,16 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
         child: Column(
           children: [
             const Text(
-              'Revenus totaux',
+              'Dépenses totales',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              '${_totalEarnings.toStringAsFixed(2)} €',
+              '${_totalSpent.toStringAsFixed(2)} €',
               style: const TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: Colors.green,
+                color: Colors.blue,
               ),
             ),
             const SizedBox(height: 16),
@@ -199,12 +199,12 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
               children: [
                 _buildStatItem(
                   'Ce mois',
-                  _getMonthlyEarnings(),
-                  Colors.blue,
+                  _getMonthlySpending(),
+                  Colors.purple,
                 ),
                 _buildStatItem(
                   'Cette semaine',
-                  _getWeeklyEarnings(),
+                  _getWeeklySpending(),
                   Colors.orange,
                 ),
               ],
@@ -377,7 +377,7 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  double _getMonthlyEarnings() {
+  double _getMonthlySpending() {
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month, 1);
     
@@ -388,7 +388,7 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
         .fold(0.0, (sum, payment) => sum + payment.amount);
   }
 
-  double _getWeeklyEarnings() {
+  double _getWeeklySpending() {
     final now = DateTime.now();
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
     
@@ -400,7 +400,7 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
   }
 
   Future<void> _loadPaymentData() async {
-    if (_artisanId == null) {
+    if (_clientId == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -415,12 +415,12 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
     setState(() => _isLoading = true);
 
     try {
-      final payments = await _paymentService.getPaymentsForArtisan(_artisanId!);
-      final earnings = await _paymentService.getTotalEarningsForArtisan(_artisanId!);
+      final payments = await _paymentService.getPaymentsForClient(_clientId!);
+      final spent = await _paymentService.getTotalSpentForClient(_clientId!);
 
       setState(() {
         _recentPayments = payments;
-        _totalEarnings = earnings;
+        _totalSpent = spent;
         _isLoading = false;
       });
     } catch (e) {
@@ -448,7 +448,7 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
             children: [
               _buildDetailRow('ID:', payment.id),
               _buildDetailRow('Mission:', payment.jobId),
-              _buildDetailRow('Client:', payment.clientId),
+              _buildDetailRow('Artisan:', payment.artisanId),
               _buildDetailRow('Montant:', '${payment.amount.toStringAsFixed(2)} €'),
               _buildDetailRow('Méthode:', payment.methodText),
               _buildDetailRow('Statut:', payment.statusText),
@@ -467,6 +467,11 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
             TextButton(
               onPressed: () => _requestRefund(payment),
               child: const Text('Demander remboursement'),
+            ),
+          if (payment.status == PaymentStatus.completed)
+            TextButton(
+              onPressed: () => _downloadInvoice(payment),
+              child: const Text('Télécharger facture'),
             ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -499,34 +504,81 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
   }
 
   Future<void> _requestRefund(Payment payment) async {
-    try {
-      await _paymentService.refundPayment(payment.id);
-      Navigator.of(context).pop();
-      _loadPaymentData();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Remboursement demandé avec succès'),
-            backgroundColor: Colors.green,
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Demander un remboursement'),
+        content: Text(
+          'Êtes-vous sûr de vouloir demander un remboursement de ${payment.amount.toStringAsFixed(2)} € ?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuler'),
           ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: Colors.red,
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Confirmer'),
           ),
-        );
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await _paymentService.refundPayment(payment.id);
+        Navigator.of(context).pop();
+        _loadPaymentData();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Remboursement demandé avec succès'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
 
+  void _downloadInvoice(Payment payment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Facture'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.picture_as_pdf, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text('Facture #${payment.id}'),
+            Text('Montant: ${payment.amount.toStringAsFixed(2)} €'),
+            const Text('Téléchargement simulé'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showManualPaymentForm() {
     final jobIdController = TextEditingController();
-    final clientIdController = TextEditingController();
+    final artisanNameController = TextEditingController(); // Changé: nom au lieu d'ID
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
 
@@ -542,15 +594,15 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
                 controller: jobIdController,
                 decoration: const InputDecoration(
                   labelText: 'ID de la mission',
-                  hintText: 'job_123',
+                  hintText: 'job_123 (optionnel)',
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
-                controller: clientIdController,
+                controller: artisanNameController, // Changé: nom au lieu d'ID
                 decoration: const InputDecoration(
-                  labelText: 'ID du client',
-                  hintText: 'client_123',
+                  labelText: 'Nom de l\'artisan',
+                  hintText: 'Jean Dupont',
                 ),
               ),
               const SizedBox(height: 12),
@@ -581,12 +633,10 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
           ),
           ElevatedButton(
             onPressed: () async {
-              if (jobIdController.text.isEmpty ||
-                  clientIdController.text.isEmpty ||
-                  amountController.text.isEmpty) {
+              if (amountController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Veuillez remplir tous les champs obligatoires'),
+                    content: Text('Veuillez remplir le montant au minimum'),
                     backgroundColor: Colors.red,
                   ),
                 );
@@ -595,14 +645,14 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
 
               try {
                 final request = PaymentRequest(
-                  jobId: jobIdController.text,
-                  clientId: clientIdController.text,
-                  artisanId: _artisanId!,
+                  jobId: jobIdController.text.isNotEmpty ? jobIdController.text : 'manual_${DateTime.now().millisecondsSinceEpoch}',
+                  clientId: _clientId!,
+                  artisanId: artisanNameController.text.isNotEmpty ? artisanNameController.text : 'artisan_inconnu', // Utiliser le nom
                   amount: double.parse(amountController.text),
                   method: PaymentMethod.creditCard,
                   description: descriptionController.text.isNotEmpty 
                       ? descriptionController.text 
-                      : 'Paiement manuel',
+                      : 'Paiement manuel pour ${artisanNameController.text}',
                 );
 
                 await _paymentService.createPayment(request);

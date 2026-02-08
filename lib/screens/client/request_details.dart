@@ -29,23 +29,27 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
   Future<void> _loadRequest() async {
     try {
       final requestProvider = Provider.of<RequestProvider>(context, listen: false);
-      await requestProvider.loadRequests();
+      await requestProvider.loadClientRequests(); // Utiliser la méthode spécifique pour le client
       
       final requests = requestProvider.requests;
       final request = requests.firstWhere((r) => r.id == widget.requestId);
       
-      setState(() {
-        _request = request;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _request = request;
+          _isLoading = false;
+        });
+      }
       
       // Charger les devis après avoir chargé la demande
-      await _loadQuotes();
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
       if (mounted) {
+        await _loadQuotes();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e')),
         );
@@ -57,9 +61,11 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
     if (_request == null) return;
     
     final quotes = await _loadRealQuotes();
-    setState(() {
-      _quotes = quotes;
-    });
+    if (mounted) {
+      setState(() {
+        _quotes = quotes;
+      });
+    }
   }
 
   Color _getStatusColor(String status) {
@@ -93,46 +99,77 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
     try {
       final firestore = FirebaseFirestore.instance;
       
-      // Charger tous les jobs liés à cette demande
+      if (_request == null) return [];
+      
+      List<Map<String, dynamic>> quotes = [];
+      
+      print('Searching jobs for request: ${_request!.id}');
+      print('Request status: ${_request!.status}');
+      
+      // Charger les vrais jobs (devis acceptés) pour cette demande
       final jobsSnapshot = await firestore
           .collection('jobs')
           .where('requestId', isEqualTo: _request!.id)
+          .where('status', isEqualTo: 'accepted')
           .get();
       
-      List<Map<String, dynamic>> quotes = [];
+      print('Jobs found: ${jobsSnapshot.docs.length}');
       
       for (var jobDoc in jobsSnapshot.docs) {
         final jobData = jobDoc.data();
         
-        // Charger les informations de l'artisan
-        final artisanDoc = await firestore
-            .collection('users')
-            .doc(jobData['artisanId'])
-            .get();
+        String artisanName = 'Artisan';
+        String artisanEmail = '';
+        String artisanPhone = '';
+        String artisanAddress = '';
         
-        if (artisanDoc.exists) {
-          final artisanData = artisanDoc.data();
+        // Charger les infos de l'artisan depuis users
+        try {
+          final artisanDoc = await firestore
+              .collection('users')
+              .doc(jobData['artisanId'])
+              .get();
           
-          if (artisanData != null) {
-            quotes.add({
-              'artisanId': jobData['artisanId'],
-              'artisanName': artisanData['fullName'] ?? 'Artisan inconnu',
-              'artisanEmail': artisanData['email'] ?? '',
-              'artisanPhone': artisanData['phone'] ?? '',
-              'artisanAddress': artisanData['address'] ?? '',
-              'artisanRating': 4.5, // TODO: Charger depuis une collection reviews
-              'artisanReviews': 0, // TODO: Charger depuis une collection reviews
-              'price': jobData['quotePrice'] ?? jobData['estimatedBudget'] ?? 0.0,
-              'description': jobData['quoteDescription'] ?? '',
-              'duration': jobData['quoteDuration'] ?? 0,
-              'materials': jobData['quoteMaterials'] ?? [],
-              'notes': jobData['quoteNotes'] ?? '',
-              'avatar': artisanData['profileImageUrl'],
-              'jobId': jobDoc.id,
-              'createdAt': jobData['createdAt'],
-            });
+          if (artisanDoc.exists) {
+            final artisanData = artisanDoc.data();
+            if (artisanData != null) {
+              artisanName = '${artisanData['firstName'] ?? ''} ${artisanData['lastName'] ?? ''}'.trim();
+              artisanEmail = artisanData['email'] ?? '';
+              artisanPhone = artisanData['phone'] ?? '';
+              artisanAddress = artisanData['address'] ?? '';
+              print('Artisan found: $artisanName');
+            }
+          } else {
+            print('User not found for artisan: ${jobData['artisanId']}');
           }
+        } catch (e) {
+          print('Error loading user: $e');
+          // Continuer avec les données de base
         }
+        
+        quotes.add({
+          'artisanId': jobData['artisanId'] ?? '',
+          'artisanName': artisanName,
+          'artisanEmail': artisanEmail,
+          'artisanPhone': artisanPhone,
+          'artisanAddress': artisanAddress,
+          'artisanRating': 4.5,
+          'artisanReviews': 0,
+          'price': jobData['quotePrice'] ?? jobData['estimatedBudget'] ?? _request!.estimatedBudget,
+          'description': jobData['quoteDescription'] ?? 'Service pour ${_request!.category}',
+          'duration': jobData['quoteDuration'] ?? 1,
+          'materials': jobData['quoteMaterials'] ?? [],
+          'notes': jobData['quoteNotes'] ?? '',
+          'avatar': null,
+          'jobId': jobDoc.id,
+          'createdAt': jobData['createdAt'] ?? Timestamp.now(),
+        });
+        
+        print('Quote added: $artisanName - ${(jobData['quotePrice'] ?? jobData['estimatedBudget'] ?? _request!.estimatedBudget)} EUR');
+      }
+      
+      if (quotes.isEmpty) {
+        print('No quotes found for this request');
       }
       
       // Trier par date de création (plus récent d'abord)
@@ -140,7 +177,7 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
       
       return quotes;
     } catch (e) {
-      print('❌ Erreur chargement devis: $e');
+      print('Error loading quotes: $e');
       return [];
     }
   }
@@ -547,86 +584,98 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
   }
 
   Widget _buildAssignedArtisanSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Artisan assigné',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const CircleAvatar(
-                  backgroundImage: NetworkImage('https://via.placeholder.com/50'),
-                  radius: 30,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Mohamed Benali',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Électricien professionnel • 4.8 ⭐',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _contactArtisan('message'),
-                    icon: const Icon(Icons.message),
-                    label: const Text('Message'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _contactArtisan('call'),
-                    icon: const Icon(Icons.phone),
-                    label: const Text('Appeler'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+    // Utiliser les vraies données des quotes
+    if (_quotes.isNotEmpty) {
+      final quote = _quotes.first;
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Artisan assigné',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 12),
+              Row(
                 children: [
-                  const Text(
-                    'Date d\'intervention',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  const CircleAvatar(
+                    radius: 30,
+                    child: Icon(Icons.person, color: Colors.white),
                   ),
-                  Text(_formatDate(_request!.preferredDate)),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          quote['artisanName'] ?? 'Artisan',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '${quote['artisanEmail'] ?? ''} • ${quote['artisanRating'] ?? 4.5} ⭐',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _contactArtisan('message'),
+                      icon: const Icon(Icons.message),
+                      label: const Text('Message'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _contactArtisan('call'),
+                      icon: const Icon(Icons.phone),
+                      label: const Text('Appeler'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Détails du service',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(quote['description'] ?? 'Service professionnel'),
+                    if (quote['notes'] != null && quote['notes'].toString().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(quote['notes']),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
+    
+    // Fallback si aucune quote
+    return const SizedBox.shrink();
   }
 
   Widget _buildTimelineSection() {
@@ -659,7 +708,7 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
             if (_request!.status == 'accepted' || _request!.status == 'in_progress' || _request!.status == 'completed')
               _buildTimelineItem(
                 'Devis accepté',
-                'Mohamed Benali sélectionné',
+                'Artisan sélectionné',
                 Icons.check_circle,
                 Colors.green,
                 true,
@@ -798,6 +847,18 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
                           onPressed: () => _markAsCompleted(),
                           icon: const Icon(Icons.check),
                           label: const Text('Marquer terminé'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    if (_request!.status == 'accepted')
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _payForService(),
+                          icon: const Icon(Icons.payment),
+                          label: const Text('Payer le service'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                             foregroundColor: Colors.white,
@@ -1081,7 +1142,7 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Comment évaluez-vous le service de Mohamed Benali ?'),
+            const Text('Comment évaluez-vous le service de l\'artisan sélectionné ?'),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1130,49 +1191,28 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
   }
 
   void _payForService() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Payer le service'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Montant à payer: ${_request!.estimatedBudget.toStringAsFixed(2)} DH'),
-            const SizedBox(height: 16),
-            const Text(
-              'Choisissez votre méthode de paiement:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              leading: const Icon(Icons.credit_card),
-              title: const Text('Carte bancaire'),
-              onTap: () {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Paiement par carte bientôt disponible')),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.account_balance_wallet),
-              title: const Text('Espèces'),
-              onTap: () {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Paiement en espèces confirmé')),
-                );
-              },
-            ),
-          ],
+    // Trouver le devis accepté (le premier devis)
+    if (_quotes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aucun devis disponible pour le paiement'),
+          backgroundColor: Colors.red,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Annuler'),
-          ),
-        ],
-      ),
+      );
+      return;
+    }
+
+    final selectedQuote = _quotes.first; // Prendre le premier devis
+    
+    final uri = Uri(
+      path: '/client/payment',
+      queryParameters: {
+        'jobId': _request!.id,
+        'artisanId': selectedQuote['artisanId'], // ID de l'artisan depuis le devis
+        'amount': selectedQuote['price'].toString(), // Prix depuis le devis
+        'jobTitle': '${_request!.category} - ${selectedQuote['artisanName']}', // Titre descriptif
+      },
     );
+    context.go(uri.toString());
   }
 }

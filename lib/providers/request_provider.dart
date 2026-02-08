@@ -73,7 +73,7 @@ class RequestProvider with ChangeNotifier {
     }
   }
 
-  // Charger toutes les demandes
+  // Charger les demandes du client connecté
   Future<void> loadRequests() async {
     try {
       _isLoading = true;
@@ -88,10 +88,10 @@ class RequestProvider with ChangeNotifier {
         return;
       }
 
-      // Charger toutes les demandes avec le statut "pending" (pour les artisans)
+      // Charger toutes les demandes du client (tous statuts)
       final snapshot = await _firestore
           .collection('requests')
-          .where('status', isEqualTo: 'pending')
+          .where('clientId', isEqualTo: currentUser.uid)
           .get();
       
       _requests = snapshot.docs
@@ -102,6 +102,40 @@ class RequestProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _error = 'Erreur de chargement des demandes: $e';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Charger les demandes du client (méthode spécifique pour éviter les conflits)
+  Future<void> loadClientRequests() async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        _requests = [];
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      // Charger toutes les demandes du client (tous statuts)
+      final snapshot = await _firestore
+          .collection('requests')
+          .where('clientId', isEqualTo: currentUser.uid)
+          .get();
+      
+      _requests = snapshot.docs
+          .map((doc) => Request.fromMap(doc.data(), doc.id))
+          .toList();
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Erreur de chargement des demandes client: $e';
       _isLoading = false;
       notifyListeners();
     }

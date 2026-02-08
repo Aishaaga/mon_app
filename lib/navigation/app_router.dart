@@ -16,6 +16,7 @@ import '../screens/client/search_artisans.dart';
 import '../screens/client/artisan_profile.dart';
 import '../screens/client/messages_list.dart';
 import '../screens/client/client_profile.dart';
+import '../screens/client/payment_screen.dart';
 
 // ARTISAN SCREENS - CORRECTION DES NOMS
 import '../screens/artisan/artisan_home.dart';
@@ -154,6 +155,14 @@ class AppRouter {
           child: const ClientProfileScreen(),
         ),
       ),
+      GoRoute(
+        path: '/client/payment',
+        name: 'client_payment',
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: const ClientPaymentScreen(),
+        ),
+      ),
 
       // ============ ARTISAN ============
       GoRoute(
@@ -251,7 +260,14 @@ class AppRouter {
         name: 'shared_payment',
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
-          child: const SharedPaymentScreen(),
+          child: SharedPaymentScreen(
+            jobId: state.uri.queryParameters['jobId'] ?? '',
+            clientId: state.uri.queryParameters['clientId'] ?? '',
+            artisanId: state.uri.queryParameters['artisanId'] ?? '',
+            amount: double.tryParse(state.uri.queryParameters['amount'] ?? '0') ?? 0.0,
+            userType: state.uri.queryParameters['userType'] ?? 'client',
+            jobTitle: state.uri.queryParameters['jobTitle'],
+          ),
         ),
       ),
     ],
@@ -311,5 +327,38 @@ class NavigationHelper {
     if (context.canPop()) {
       context.pop();
     }
+  }
+
+  // Navigation vers les paiements
+  static void goToClientPayment(BuildContext context) {
+    context.go('/client/payment');
+  }
+
+  static void goToArtisanPayment(BuildContext context) {
+    context.go('/artisan/payment');
+  }
+
+  static void goToSharedPayment(BuildContext context, {
+    required String jobId,
+    required String clientId,
+    required String artisanId,
+    required double amount,
+    required String userType,
+    String? jobTitle,
+  }) {
+    final queryParams = <String, String>{
+      'jobId': jobId,
+      'clientId': clientId,
+      'artisanId': artisanId,
+      'amount': amount.toString(),
+      'userType': userType,
+    };
+    
+    if (jobTitle != null) {
+      queryParams['jobTitle'] = jobTitle;
+    }
+
+    final uri = Uri(path: '/payment', queryParameters: queryParams);
+    context.go(uri.toString());
   }
 }

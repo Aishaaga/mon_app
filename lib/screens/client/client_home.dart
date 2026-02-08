@@ -38,6 +38,8 @@ class _ClientHomeState extends State<ClientHome> {
             onSelected: (value) {
               if (value == 'profile') {
                 context.go('/client/profile');
+              } else if (value == 'payment') {
+                context.go('/client/payment');
               } else if (value == 'logout') {
                 _handleLogout();
               }
@@ -50,6 +52,16 @@ class _ClientHomeState extends State<ClientHome> {
                     Icon(Icons.person),
                     SizedBox(width: 8),
                     Text('Mon profil'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'payment',
+                child: Row(
+                  children: [
+                    Icon(Icons.payment),
+                    SizedBox(width: 8),
+                    Text('Mes paiements'),
                   ],
                 ),
               ),

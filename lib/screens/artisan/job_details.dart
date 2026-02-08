@@ -428,17 +428,44 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                   color: Colors.green.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Column(
                   children: [
-                    Icon(Icons.check_circle, color: Colors.green),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Intervention terminée',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Intervention terminée',
+                          style: TextStyle(
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                        final uri = Uri(
+                          path: '/artisan/payment',
+                          queryParameters: {
+                            'jobId': widget.jobId,
+                            'clientId': job.clientId,
+                            'amount': job.quotePrice?.toString() ?? job.estimatedBudget.toString(),
+                            'jobTitle': job.category, // Utiliser category comme titre
+                          },
+                        );
+                        context.go(uri.toString());
+                      },
+                        icon: const Icon(Icons.payment),
+                        label: const Text('Demander le paiement'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.all(16),
+                        ),
                       ),
                     ),
                   ],

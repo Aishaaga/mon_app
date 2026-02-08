@@ -70,6 +70,8 @@ class _ArtisanHomeState extends State<ArtisanHome> {
             onSelected: (value) {
               if (value == 'profile') {
                 context.go('/artisan/profile');
+              } else if (value == 'payment') {
+                context.go('/artisan/payment');
               } else if (value == 'logout') {
                 _handleLogout();
               }
@@ -82,6 +84,16 @@ class _ArtisanHomeState extends State<ArtisanHome> {
                     Icon(Icons.person),
                     SizedBox(width: 8),
                     Text('Mon profil'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'payment',
+                child: Row(
+                  children: [
+                    Icon(Icons.payment),
+                    SizedBox(width: 8),
+                    Text('Gestion paiements'),
                   ],
                 ),
               ),
