@@ -357,8 +357,6 @@ class _ChatScreenState extends State<ChatScreen> {
               context.go(widget.returnRoute!);
             } else if (context.canPop()) {
               context.pop();
-            } else {
-              context.go('/client/messages');
             }
           },
         ),

@@ -72,9 +72,13 @@ class _ArtisanPaymentScreenState extends State<ArtisanPaymentScreen>
         title: const Text('Gestion des paiements'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => widget.jobId != null 
-              ? context.go('/artisan/request/${widget.jobId}')
-              : context.go('/artisan/home'),
+          onPressed: () {
+            if (widget.jobId != null) {
+              context.go('/artisan/request/${widget.jobId}');
+            } else {
+              context.go('/artisan/home');
+            }
+          },
         ),
         bottom: TabBar(
           controller: _tabController,
