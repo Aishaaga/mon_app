@@ -107,16 +107,81 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
       print('Request status: ${_request!.status}');
       
       // Charger les vrais jobs (devis acceptés) pour cette demande
+      // Chercher tous les jobs pour cette demande, pas seulement ceux avec status 'accepted'
       final jobsSnapshot = await firestore
           .collection('jobs')
           .where('requestId', isEqualTo: _request!.id)
-          .where('status', isEqualTo: 'accepted')
           .get();
       
       print('Jobs found: ${jobsSnapshot.docs.length}');
       
+      // Si la demande est acceptée ou en cours, chercher l'artisan assigné dans les jobs
+      if (_request!.status == 'accepted' || _request!.status == 'in_progress') {
+        // Chercher un job accepté pour cette demande
+        for (var jobDoc in jobsSnapshot.docs) {
+          final jobData = jobDoc.data();
+          if (jobData['status'] == 'accepted' || jobData['status'] == 'in_progress') {
+            print('Found accepted job: ${jobDoc.id} by artisan: ${jobData['artisanId']}');
+            
+            String artisanName = 'Artisan';
+            String artisanEmail = '';
+            String artisanPhone = '';
+            String artisanAddress = '';
+            
+            try {
+              final artisanDoc = await firestore
+                  .collection('users')
+                  .doc(jobData['artisanId'])
+                  .get();
+              
+              if (artisanDoc.exists) {
+                final artisanData = artisanDoc.data();
+                if (artisanData != null) {
+                  artisanName = '${artisanData['firstName'] ?? ''} ${artisanData['lastName'] ?? ''}'.trim();
+                  artisanEmail = artisanData['email'] ?? '';
+                  artisanPhone = artisanData['phone'] ?? '';
+                  artisanAddress = artisanData['address'] ?? '';
+                  print('Assigned artisan found: $artisanName');
+                }
+              } else {
+                print('Assigned user not found: ${jobData['artisanId']}');
+              }
+            } catch (e) {
+              print('Error loading assigned user: $e');
+            }
+            
+            quotes.add({
+              'artisanId': jobData['artisanId'] ?? '',
+              'artisanName': artisanName,
+              'artisanEmail': artisanEmail,
+              'artisanPhone': artisanPhone,
+              'artisanAddress': artisanAddress,
+              'artisanRating': 4.5,
+              'artisanReviews': 0,
+              'price': jobData['quotePrice'] ?? jobData['estimatedBudget'] ?? _request!.estimatedBudget,
+              'description': jobData['quoteDescription'] ?? 'Service pour ${_request!.category}',
+              'duration': jobData['quoteDuration'] ?? 1,
+              'materials': jobData['quoteMaterials'] ?? [],
+              'notes': jobData['quoteNotes'] ?? '',
+              'avatar': null,
+              'jobId': jobDoc.id,
+              'createdAt': jobData['createdAt'] ?? Timestamp.now(),
+            });
+            
+            // Sortir après avoir trouvé l'artisan assigné
+            break;
+          }
+        }
+      }
+      
+      // Ajouter les autres jobs trouvés (non acceptés)
       for (var jobDoc in jobsSnapshot.docs) {
         final jobData = jobDoc.data();
+        
+        // Skip si déjà ajouté comme artisan assigné
+        if (quotes.any((quote) => quote['jobId'] == jobDoc.id)) {
+          continue;
+        }
         
         String artisanName = 'Artisan';
         String artisanEmail = '';
