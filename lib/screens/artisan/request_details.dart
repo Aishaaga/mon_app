@@ -644,6 +644,6 @@ class _ArtisanRequestDetailsScreenState extends State<ArtisanRequestDetailsScree
   }
 
   void _contactClient(Request request) {
-    context.go('/chat/${request.clientId}');
+    context.go('/chat/${request.clientId}?returnTo=/artisan/request/${widget.requestId}');
   }
 }

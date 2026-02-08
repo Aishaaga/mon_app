@@ -390,6 +390,6 @@ class _AvailableRequestsScreenState extends State<AvailableRequestsScreen> {
   }
 
   void _contactClient(String clientId) {
-    context.go('/chat/$clientId');
+    context.go('/chat/$clientId?returnTo=/artisan/available-requests');
   }
 }

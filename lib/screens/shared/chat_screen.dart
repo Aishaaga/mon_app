@@ -369,7 +369,8 @@ class _ChatScreenState extends State<ChatScreen> {
             
             if (_returnRoute != null) {
               print('🔙 Navigating to: $_returnRoute');
-              context.go(_returnRoute!);
+              // Utiliser pushReplacement pour éviter les problèmes de navigation
+              context.pushReplacement(_returnRoute!);
             } else if (context.canPop()) {
               print('🔙 Using context.pop()');
               context.pop();
