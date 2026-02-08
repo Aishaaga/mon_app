@@ -442,7 +442,7 @@ class _ClientArtisanProfileScreenState extends State<ClientArtisanProfileScreen>
   }
 
   void _contactArtisan() {
-    context.go('/chat/${widget.artisanId}');
+    context.go('/chat/${widget.artisanId}?returnRoute=/client/artisan-profile/${widget.artisanId}');
   }
 
   void _callArtisan() {

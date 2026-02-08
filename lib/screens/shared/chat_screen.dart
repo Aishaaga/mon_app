@@ -23,11 +23,21 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = true;
   bool _isSending = false;
   String? _conversationId;
+  String? _returnRoute; // Variable locale pour returnRoute
 
   @override
   void initState() {
     super.initState();
+    _extractUrlParameters();
     _loadChatData();
+  }
+
+  void _extractUrlParameters() {
+    // Le returnRoute est déjà passé par le routeur via le constructeur
+    _returnRoute = widget.returnRoute;
+    
+    print('🔙 Widget returnRoute: ${widget.returnRoute}');
+    print('🔙 Final returnRoute: $_returnRoute');
   }
 
   @override
@@ -353,10 +363,19 @@ class _ChatScreenState extends State<ChatScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            if (widget.returnRoute != null) {
-              context.go(widget.returnRoute!);
+            print('🔙 Back button pressed');
+            print('🔙 _returnRoute: $_returnRoute');
+            print('🔙 context.canPop(): ${context.canPop()}');
+            
+            if (_returnRoute != null) {
+              print('🔙 Navigating to: $_returnRoute');
+              context.go(_returnRoute!);
             } else if (context.canPop()) {
+              print('🔙 Using context.pop()');
               context.pop();
+            } else {
+              print('🔙 No returnRoute, using default');
+              context.go('/client/messages');
             }
           },
         ),
