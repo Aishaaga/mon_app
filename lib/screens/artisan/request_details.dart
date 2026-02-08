@@ -375,11 +375,7 @@ class _ArtisanRequestDetailsScreenState extends State<ArtisanRequestDetailsScree
                 ),
                 IconButton(
                   icon: const Icon(Icons.message),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Contact disponible après envoi de devis')),
-                    );
-                  },
+                  onPressed: () => _contactClient(request),
                   tooltip: 'Contacter le client',
                 ),
               ],
@@ -525,11 +521,7 @@ class _ArtisanRequestDetailsScreenState extends State<ArtisanRequestDetailsScree
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Messagerie bientôt disponible')),
-                      );
-                    },
+                    onPressed: () => _contactClient(request),
                     icon: const Icon(Icons.message),
                     label: const Text('Contacter le client'),
                   ),
@@ -649,5 +641,9 @@ class _ArtisanRequestDetailsScreenState extends State<ArtisanRequestDetailsScree
     } else {
       return 'le ${date.day}/${date.month}/${date.year}';
     }
+  }
+
+  void _contactClient(Request request) {
+    context.go('/chat/${request.clientId}');
   }
 }

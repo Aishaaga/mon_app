@@ -360,12 +360,7 @@ class _AvailableRequestsScreenState extends State<AvailableRequestsScreen> {
                   ),
                   const SizedBox(width: 8),
                   OutlinedButton.icon(
-                    onPressed: () {
-                      // TODO: Envoyer message au client
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Message bientôt disponible')),
-                      );
-                    },
+                    onPressed: () => _contactClient(request.clientId),
                     icon: const Icon(Icons.message, size: 16),
                     label: const Text('Contacter'),
                   ),
@@ -392,5 +387,9 @@ class _AvailableRequestsScreenState extends State<AvailableRequestsScreen> {
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
+  }
+
+  void _contactClient(String clientId) {
+    context.go('/chat/$clientId');
   }
 }
