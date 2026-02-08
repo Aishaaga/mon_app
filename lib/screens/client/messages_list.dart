@@ -300,7 +300,7 @@ class _ClientMessagesListScreenState extends State<ClientMessagesListScreen> {
   }
 
   void _openChat(Conversation conversation) {
-    context.go('/chat/${conversation.participantId}');
+    context.go('/chat/${conversation.participantId}?returnTo=/client/messages');
   }
 
   void _searchConversations() {
