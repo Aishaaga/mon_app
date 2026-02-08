@@ -1296,16 +1296,16 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
       
       // Naviguer vers l'écran de conversation
       if (mounted) {
-        Navigator.pushNamed(
-          context,
-          '/conversation',
-          arguments: {
+        final uri = Uri(
+          path: '/conversation',
+          queryParameters: {
             'conversationId': conversationId,
             'artisanId': artisanId,
             'clientId': clientId,
             'contactType': contactType,
           },
         );
+        context.go(uri.toString());
       }
     } catch (e) {
       print('Erreur lors de la création/récupération de la conversation: $e');
