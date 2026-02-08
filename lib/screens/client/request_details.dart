@@ -703,7 +703,7 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'En attente d\'acceptation',
+                      'Aucun artisan n\'a encore accepté',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -712,7 +712,7 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Votre demande est en cours de traitement. Les artisans intéressés vous contacteront bientôt.',
+                      'Votre demande est visible par les artisans qualifiés. Ils pourront la consulter et vous contacter s\'ils sont intéressés.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.orange[700],
@@ -733,7 +733,7 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
                                 Icon(Icons.visibility, color: Colors.blue[600], size: 20),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Visible par les artisans',
+                                  'Demande visible',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.blue[700],
