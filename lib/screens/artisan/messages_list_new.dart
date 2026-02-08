@@ -304,28 +304,29 @@ class _ArtisanMessagesListScreenState extends State<ArtisanMessagesListScreen> {
   }
 
   void _openChat(Conversation conversation) {
-    context.go('/chat/${conversation.participantId}?returnRoute=/artisan/messages');
+    // Naviguer vers l'écran de conversation
+    context.go('/chat/${conversation.participantId}?returnTo=/artisan/messages');
   }
 
   void _searchConversations() {
-    showSearch(
+    // Implémenter la recherche plus tard
+    showSearchDialog(
       context: context,
-      delegate: ConversationSearchDelegate(_conversations),
+      delegate: CustomSearchDelegate(),
     );
   }
 }
 
-class ConversationSearchDelegate extends SearchDelegate<String> {
-  final List<Conversation> conversations;
-
-  ConversationSearchDelegate(this.conversations);
-
+class CustomSearchDelegate extends SearchDelegate<String> {
   @override
   List<Widget> buildActions(BuildContext context) {
     return [
       IconButton(
         icon: const Icon(Icons.clear),
-        onPressed: () => query = '',
+        onPressed: () {
+          query = '';
+          close(context, null);
+        },
       ),
     ];
   }
@@ -334,26 +335,21 @@ class ConversationSearchDelegate extends SearchDelegate<String> {
   Widget buildLeading(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.arrow_back),
-      onPressed: () => close(context, ''),
+      onPressed: () {
+        close(context, null);
+      },
     );
   }
 
   @override
-  Widget buildResults(BuildContext context) {
-    final results = conversations.where((conversation) {
-      return conversation.participantName.toLowerCase().contains(query.toLowerCase()) ||
-             conversation.participantEmail.toLowerCase().contains(query.toLowerCase());
-    }).toList();
-
+  Widget buildResults(BuildContext context, List<String> results) {
     return ListView.builder(
       itemCount: results.length,
       itemBuilder: (context, index) {
         return ListTile(
-          title: Text(results[index].participantName),
-          subtitle: Text(results[index].participantEmail),
+          title: Text(results[index]),
           onTap: () {
-            close(context, results[index].participantId);
-            context.go('/chat/${results[index].participantId}?returnRoute=/artisan/messages');
+            close(context, results[index]);
           },
         );
       },
@@ -361,21 +357,14 @@ class ConversationSearchDelegate extends SearchDelegate<String> {
   }
 
   @override
-  Widget buildSuggestions(BuildContext context) {
-    final suggestions = conversations.where((conversation) {
-      return conversation.participantName.toLowerCase().contains(query.toLowerCase()) ||
-             conversation.participantEmail.toLowerCase().contains(query.toLowerCase());
-    }).toList();
-
+  Widget buildSuggestions(BuildContext context, List<String> suggestions) {
     return ListView.builder(
       itemCount: suggestions.length,
       itemBuilder: (context, index) {
         return ListTile(
-          title: Text(suggestions[index].participantName),
-          subtitle: Text(suggestions[index].participantEmail),
+          title: Text(suggestions[index]),
           onTap: () {
-            close(context, suggestions[index].participantId);
-            context.go('/chat/${suggestions[index].participantId}?returnRoute=/artisan/messages');
+            close(context, suggestions[index]);
           },
         );
       },
