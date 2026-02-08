@@ -1186,14 +1186,72 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
     );
   }
 
-  void _contactArtisan(String method) {
-    if (method == 'message') {
-      context.go('/chat/artisan123');
-    } else if (method == 'call') {
-      // Implémenter l'appel téléphonique
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Fonction d\'appel bientôt disponible')),
-      );
+  void _contactArtisan(String type) {
+    if (_quotes.isNotEmpty) {
+      final quote = _quotes.first;
+      final artisanId = quote['artisanId'] as String;
+      final clientId = _request!.clientId;
+      
+      // Créer ou retrouver la conversation entre le client et l'artisan
+      _createOrGetConversation(artisanId, clientId, type);
+    } else {
+      // Si aucun artisan n'a accepté, ne rien faire
+      print('Aucun artisan à contacter');
+    }
+  }
+
+  Future<void> _createOrGetConversation(String artisanId, String clientId, String contactType) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      
+      // Vérifier si une conversation existe déjà
+      final existingConversations = await firestore
+          .collection('conversations')
+          .where('participants', arrayContains: [clientId, artisanId])
+          .get();
+      
+      String conversationId;
+      
+      if (existingConversations.docs.isNotEmpty) {
+        // Utiliser la conversation existante
+        conversationId = existingConversations.docs.first.id;
+        print('Conversation existante trouvée: $conversationId');
+      } else {
+        // Créer une nouvelle conversation
+        final conversationDoc = await firestore.collection('conversations').add({
+          'participants': [clientId, artisanId],
+          'createdAt': Timestamp.now(),
+          'lastMessage': '',
+          'lastMessageTime': Timestamp.now(),
+        });
+        
+        conversationId = conversationDoc.id;
+        print('Nouvelle conversation créée: $conversationId');
+      }
+      
+      // Naviguer vers l'écran de conversation
+      if (mounted) {
+        Navigator.pushNamed(
+          context,
+          '/conversation',
+          arguments: {
+            'conversationId': conversationId,
+            'artisanId': artisanId,
+            'clientId': clientId,
+            'contactType': contactType,
+          },
+        );
+      }
+    } catch (e) {
+      print('Erreur lors de la création/récupération de la conversation: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de l\'ouverture de la conversation'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

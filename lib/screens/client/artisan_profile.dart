@@ -423,9 +423,9 @@ class _ClientArtisanProfileScreenState extends State<ClientArtisanProfileScreen>
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () => _callArtisan(),
-            icon: const Icon(Icons.phone),
-            label: const Text('Appeler l\'artisan'),
+            onPressed: () => _contactArtisan(),
+            icon: const Icon(Icons.message),
+            label: const Text('Contacter l\'artisan'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.all(16),
             ),

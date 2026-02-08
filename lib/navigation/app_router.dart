@@ -32,6 +32,7 @@ import '../screens/artisan/payment_screen.dart';
 
 // SHARED SCREENS
 import '../screens/shared/chat_screen.dart';
+import '../screens/shared/conversation_screen.dart';
 import '../screens/shared/payment_screen.dart';
 
 class AppRouter {
@@ -245,6 +246,7 @@ class AppRouter {
       // ============ PARTAGÉ ============
       GoRoute(
         path: '/chat/:userId',
+        name: 'chat',
         pageBuilder: (context, state) {
           final userId = state.pathParameters['userId']!;
           final returnRoute = state.uri.queryParameters['returnTo'];
@@ -252,6 +254,26 @@ class AppRouter {
           return MaterialPage(
             key: state.pageKey,
             child: ChatScreen(userId: userId, returnRoute: returnRoute),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/conversation',
+        name: 'conversation',
+        pageBuilder: (context, state) {
+          final conversationId = state.uri.queryParameters['conversationId'];
+          final artisanId = state.uri.queryParameters['artisanId'];
+          final clientId = state.uri.queryParameters['clientId'];
+          final contactType = state.uri.queryParameters['contactType'];
+
+          return MaterialPage(
+            key: state.pageKey,
+            child: ConversationScreen(
+              conversationId: conversationId ?? '',
+              artisanId: artisanId,
+              clientId: clientId,
+              contactType: contactType,
+            ),
           );
         },
       ),
