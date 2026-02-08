@@ -1303,6 +1303,7 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
             'artisanId': artisanId,
             'clientId': clientId,
             'contactType': contactType,
+            'returnRoute': '/client/request/${_request!.id}', // Ajouter returnRoute
           },
         );
         context.go(uri.toString());

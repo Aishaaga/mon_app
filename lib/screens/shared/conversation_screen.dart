@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async'; // Ajouter l'import pour StreamSubscription
 
 class ConversationScreen extends StatefulWidget {
   final String conversationId;
   final String? artisanId;
   final String? clientId;
   final String? contactType;
+  final String? returnRoute; // Ajouter returnRoute
 
   const ConversationScreen({
     super.key,
@@ -15,6 +17,7 @@ class ConversationScreen extends StatefulWidget {
     this.artisanId,
     this.clientId,
     this.contactType,
+    this.returnRoute, // Ajouter returnRoute
   });
 
   @override
@@ -26,11 +29,43 @@ class _ConversationScreenState extends State<ConversationScreen> {
   final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = true;
   Map<String, dynamic>? _otherUser;
+  StreamSubscription<QuerySnapshot>? _messagesSubscription; // Utiliser StreamSubscription
 
   @override
   void initState() {
     super.initState();
     _loadConversation();
+    _setupMessagesStream(); // Configurer le stream pour les messages en temps réel
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _messagesSubscription?.cancel(); // Annuler le stream pour éviter les fuites mémoire
+    super.dispose();
+  }
+
+  void _setupMessagesStream() {
+    final firestore = FirebaseFirestore.instance;
+    final stream = firestore
+        .collection('conversations')
+        .doc(widget.conversationId)
+        .collection('messages')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+    
+    _messagesSubscription = stream.listen((snapshot) {
+      if (mounted) {
+        setState(() {
+          _messages.clear();
+          for (var doc in snapshot.docs) {
+            final data = doc.data() as Map<String, dynamic>; // Cast explicite
+            _messages.add(data);
+          }
+          _isLoading = false;
+        });
+      }
+    });
   }
 
   Future<void> _loadConversation() async {
@@ -150,8 +185,20 @@ class _ConversationScreenState extends State<ConversationScreen> {
             if (context.canPop()) {
               context.pop();
             } else {
-              // Retour automatique selon le type d'utilisateur
-              context.go('/client/my-requests');
+              // Retour intelligent selon le returnRoute ou la page précédente
+              if (widget.returnRoute != null) {
+                context.go(widget.returnRoute!);
+              } else {
+                // Détecter la page précédente selon le contexte
+                final uri = GoRouterState.of(context).uri;
+                if (uri.path.contains('/client/request/')) {
+                  context.go('/client/my-requests');
+                } else if (uri.path.contains('/artisan/request/')) {
+                  context.go('/artisan/available-requests');
+                } else {
+                  context.go('/client/my-requests'); // Par défaut
+                }
+              }
             }
           },
         ),
