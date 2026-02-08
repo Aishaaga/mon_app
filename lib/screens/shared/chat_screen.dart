@@ -358,15 +358,7 @@ class _ChatScreenState extends State<ChatScreen> {
             } else if (context.canPop()) {
               context.pop();
             } else {
-              // Détection automatique du type d'utilisateur
-              final authProvider = Provider.of<AuthProvider>(context, listen: false);
-              final userType = authProvider.userData?['userType'] ?? 'client';
-              
-              if (userType == 'artisan') {
-                context.go('/artisan/home');
-              } else {
-                context.go('/client/messages');
-              }
+              context.go('/client/messages');
             }
           },
         ),
