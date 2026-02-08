@@ -1269,19 +1269,29 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
     try {
       final firestore = FirebaseFirestore.instance;
       
-      // Vérifier si une conversation existe déjà
+      // Vérifier si une conversation existe déjà entre ces deux utilisateurs
+      // Chercher une conversation où les deux participants sont présents
       final existingConversations = await firestore
           .collection('conversations')
-          .where('participants', arrayContains: [clientId, artisanId])
+          .where('participants', arrayContains: clientId)
           .get();
       
-      String conversationId;
+      String conversationId = '';
+      bool foundExisting = false;
       
-      if (existingConversations.docs.isNotEmpty) {
-        // Utiliser la conversation existante
-        conversationId = existingConversations.docs.first.id;
-        print('Conversation existante trouvée: $conversationId');
-      } else {
+      // Filtrer manuellement pour trouver une conversation avec les deux participants
+      for (var doc in existingConversations.docs) {
+        final data = doc.data();
+        final participants = List<String>.from(data['participants'] ?? []);
+        if (participants.contains(artisanId) && participants.contains(clientId)) {
+          conversationId = doc.id;
+          foundExisting = true;
+          print('Conversation existante trouvée: $conversationId');
+          break;
+        }
+      }
+      
+      if (!foundExisting) {
         // Créer une nouvelle conversation
         final conversationDoc = await firestore.collection('conversations').add({
           'participants': [clientId, artisanId],
@@ -1303,7 +1313,7 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
             'artisanId': artisanId,
             'clientId': clientId,
             'contactType': contactType,
-            'returnRoute': '/client/request/${_request!.id}', // Ajouter returnRoute
+            'returnRoute': '/client/request/${_request!.id}',
           },
         );
         context.go(uri.toString());
