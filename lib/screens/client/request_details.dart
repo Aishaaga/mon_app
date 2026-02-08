@@ -674,7 +674,112 @@ class _ClientRequestDetailsScreenState extends State<ClientRequestDetailsScreen>
       );
     }
     
-    // Fallback si aucune quote
+    // Carte si aucun artisan n'a encore accepté
+    if (_request!.status == 'pending') {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Artisan assigné',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange[200]!),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.hourglass_empty,
+                      size: 48,
+                      color: Colors.orange[600],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'En attente d\'acceptation',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange[800],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Votre demande est en cours de traitement. Les artisans intéressés vous contacteront bientôt.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.orange[700],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(Icons.visibility, color: Colors.blue[600], size: 20),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Visible par les artisans',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(Icons.notifications_active, color: Colors.green[600], size: 20),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Notifications activées',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.green[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    // Fallback si aucune quote et statut différent de pending
     return const SizedBox.shrink();
   }
 
