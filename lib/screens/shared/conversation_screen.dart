@@ -138,8 +138,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
       final messageData = {
         'senderId': user.uid,
         'senderName': user.displayName ?? 'Utilisateur',
+        'receiverId': widget.artisanId == user.uid ? widget.clientId : widget.artisanId,
         'content': _messageController.text.trim(),
         'createdAt': Timestamp.now(),
+        'isRead': false,
         'participants': [widget.artisanId, widget.clientId],
       };
 

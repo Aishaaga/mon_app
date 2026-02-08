@@ -76,8 +76,9 @@ class _ClientMessagesListScreenState extends State<ClientMessagesListScreen> {
 
               // Compter les messages non lus
               final unreadSnapshot = await firestore
+                  .collection('conversations')
+                  .doc(doc.id)
                   .collection('messages')
-                  .where('conversationId', isEqualTo: doc.id)
                   .where('receiverId', isEqualTo: currentUserId)
                   .where('isRead', isEqualTo: false)
                   .get();
