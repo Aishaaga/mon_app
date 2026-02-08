@@ -26,10 +26,10 @@ class ConversationScreen extends StatefulWidget {
 
 class _ConversationScreenState extends State<ConversationScreen> {
   final TextEditingController _messageController = TextEditingController();
-  final List<Map<String, dynamic>> _messages = [];
+  List<Map<String, dynamic>> _conversationMessages = [];
   bool _isLoading = true;
   Map<String, dynamic>? _otherUser;
-  StreamSubscription<QuerySnapshot>? _messagesSubscription; // Utiliser StreamSubscription
+  StreamSubscription<QuerySnapshot>? _messagesSubscription;
 
   @override
   void initState() {
@@ -57,11 +57,29 @@ class _ConversationScreenState extends State<ConversationScreen> {
     _messagesSubscription = stream.listen((snapshot) {
       if (mounted) {
         setState(() {
-          _messages.clear();
+          // Ne pas effacer les messages existants, juste ajouter les nouveaux
+          final existingMessageIds = _conversationMessages.map((msg) => msg['messageId'] ?? '').toSet();
+          
           for (var doc in snapshot.docs) {
-            final data = doc.data() as Map<String, dynamic>; // Cast explicite
-            _messages.add(data);
+            final data = doc.data() as Map<String, dynamic>;
+            final messageId = data['messageId'] ?? doc.id;
+            
+            // Ajouter seulement si pas déjà présent
+            if (!existingMessageIds.contains(messageId)) {
+              _conversationMessages.add(data);
+            }
           }
+          
+          // Garder seulement les 50 messages les plus récents
+          if (_conversationMessages.length > 50) {
+            _conversationMessages.sort((a, b) {
+              final aTime = a['createdAt'] as Timestamp;
+              final bTime = b['createdAt'] as Timestamp;
+              return bTime.compareTo(aTime);
+            });
+            _conversationMessages = _conversationMessages.take(50).toList();
+          }
+          
           _isLoading = false;
         });
       }
@@ -113,9 +131,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
             .get();
 
         setState(() {
-          _messages.clear();
+          _conversationMessages.clear();
           for (var messageDoc in messagesSnapshot.docs) {
-            _messages.add(messageDoc.data()!);
+            _conversationMessages.add(messageDoc.data()!);
           }
           _isLoading = false;
         });
@@ -142,6 +160,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
         'content': _messageController.text.trim(),
         'createdAt': Timestamp.now(),
         'isRead': false,
+        'messageId': '${DateTime.now().millisecondsSinceEpoch}_${user.uid}', // ID unique
         'participants': [widget.artisanId, widget.clientId],
       };
 
@@ -230,7 +249,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _messages.isEmpty
+                : _conversationMessages.isEmpty
                     ? const Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -251,9 +270,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.all(8),
-                        itemCount: _messages.length,
+                        itemCount: _conversationMessages.length,
                         itemBuilder: (context, index) {
-                          final message = _messages[index];
+                          final message = _conversationMessages[index];
                           final isMe = message['senderId'] == FirebaseAuth.instance.currentUser?.uid;
                           
                           return _buildMessageBubble(message, isMe);
@@ -374,7 +393,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
             CircleAvatar(
               radius: 16,
               backgroundColor: Colors.blue[100],
-              child: const Icon(Icons.person, size: 20, color: Colors.blue),
+              child: const Icon(Icons.check, size: 20, color: Colors.blue),
             ),
           ],
         ],
